@@ -40,8 +40,8 @@ type Cacheparam struct {
 
 // Configurable parameters for DFC service
 type Configparam struct {
-	s3config    s3configparam
-	cacheconfig cacheparam
+	s3config    S3configparam
+	cacheconfig Cacheparam
 }
 
 // Provides stats for DFC/
@@ -72,6 +72,10 @@ type dctx struct {
 	//TODO Make it generic to support Multiple cloud vendors
 	s3param S3
 	lsparam listner
+	// statics or histogram for dfc
+	stat Stats
+
+	sig chan os.Signal
 }
 
 // Global context
@@ -81,6 +85,7 @@ var ctx *dctx
 func init() {
 	ctx = new(dctx)
 
+	ctx.sig = make(chan os.Signal, 1)
 	// TODO  Get type and port from config
 	ctx.lsparam.proto = "tcp"
 
@@ -96,9 +101,11 @@ func init() {
 
 }
 
-// Start DFC on Node.
-func Start() {
-	var pool group.Group
+// Init DFC on Node.
+func Init() (error, *dctx, *group.Group) {
+	var pool *group.Group
+	var err error
+	pool = new(group.Group)
 	// TODO Registration with load balancer
 	// pool.Add(lbregister, noopfunc)
 
@@ -111,13 +118,23 @@ func Start() {
 
 	// Signal handler runnning as third worker
 	pool.Add(sighandler, sigexit)
-	glog.Info("Starting all workers \n")
+	return err, ctx, pool
 
 }
 
+// Start DFC Main worker thread
+func Run(pool *group.Group) {
+	//panic(pool == nil)
+
+	glog.Infof("Run \n")
+	pool.Run()
+}
+
 // It stops DFC service, similar to user pressing CTL-C or interrupt
-func Stop() {
-	// TODO
+func Stop(ctx *dctx) {
+	//panic(ctx == nil)
+	glog.Infof(" Sending stop signal to DFC Main worker \n")
+	close(ctx.cancel)
 }
 
 // To enable configurable parameter for DFC
@@ -127,7 +144,9 @@ func Config(config Configparam) {
 
 // Provides stats for DFC service
 func Stat() Stats {
+
 	// TODO
+	return ctx.stat
 }
 
 func dstart() error {
@@ -145,6 +164,7 @@ func dstart() error {
 
 func dstop(err error) {
 	glog.Infof("The Mainworker was interrupted with: %v\n", err)
+	glog.Flush()
 	close(ctx.cancel)
 }
 
@@ -281,13 +301,12 @@ func websrvstop(err error) {
 }
 
 func sighandler() error {
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig,
+	signal.Notify(ctx.sig,
 		syscall.SIGHUP,
 		syscall.SIGINT,
 		syscall.SIGTERM,
 		syscall.SIGQUIT)
-	s := <-sig
+	s := <-ctx.sig
 	switch s {
 	// kill -SIGHUP XXXX
 	case syscall.SIGHUP:
