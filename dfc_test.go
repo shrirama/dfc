@@ -1,20 +1,19 @@
 package dfc
 
 import (
-	"errors"
 	"testing"
 	"time"
 )
 
 func TestInitRunStop(t *testing.T) {
-	err, ctx, pool := dfc.Init()
+	err, ctx, pool := Init()
 	if err != nil {
 		t.Errorf(" error in DFC initialization ")
 	}
-	go pool.Run()
+	go Run(pool)
 	// stop after 60 seconds
 	time.Sleep(60 * time.Second)
-	dfc.Stop(ctx)
+	Stop(ctx)
 }
 
 func TestConfig(t *testing.T) {
