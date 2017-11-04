@@ -4,9 +4,28 @@
 
 package dfc
 
-import "github.com/golang/glog"
+import (
+	"encoding/json"
+	"flag"
+	"fmt"
+	"io/ioutil"
+	"os"
+
+	"github.com/golang/glog"
+)
 
 type dfcstring string
+
+type Config struct {
+	Proto            string `json:"proto"`
+	Port             string `json:"port"`
+	Cachedir         string `json:"cachedir"`
+	Logdir           string `json:"logdir"`
+	CloudProvider    string `json"cloudprovider"`
+	Maxconcurrdownld uint32 `json"maxconcurrdownld"`
+	Maxconcurrupld   uint32 `json"maxconcurrupld"`
+	Maxpartsize      uint64 `json"maxpartsize"`
+}
 
 // Need to define structure for each cloud vendor like S3 , Azure, Cloud etc
 // AWS S3 configurable parameters
@@ -14,9 +33,9 @@ type dfcstring string
 // Configurable Parameters for Amazon S3
 type S3configparam struct {
 	// Concurrent Upload
-	conupload int32
+	maxconupload uint32
 	// Concurent Download
-	condownload int32
+	maxcondownload uint32
 	// Maximum part size
 	maxpartsize uint64
 }
@@ -28,38 +47,48 @@ type Cacheparam struct {
 	// TODO
 }
 
-// Configurable parameters for DFC service
-type Configparam struct {
-	s3config    S3configparam
-	cacheconfig Cacheparam
-}
-
-// Destination Path for key(s) on host.It's configurable.
-type S3 struct {
-	localdir string
-}
-
 // Listner Port and Type for DFC service.It's constant aka non configurable.
-type listner struct {
+type Listnerparam struct {
+	// Prototype : tcp
 	proto dfcstring
-	// Multiple ports are defined to test webserver listening to Multiple Ports for Testing.
-	port1 dfcstring
-	port2 dfcstring
+	// Listening port.
+	port dfcstring
 }
 
-func initconfigparam(ctx *dctx) {
-
-	ctx.lsparam.proto = "tcp"
-	ctx.lsparam.port1 = "8080"
-	ctx.lsparam.port2 = "8081"
-
-	// localdir is scratch space to download
-	// It will be destination path for DFC use case.
-	ctx.s3param.localdir = "/tmp/nvidia/"
+// Configurable parameters for DFC service
+type ConfigParam struct {
+	logdir        string
+	cachedir      string
+	lsparam       Listnerparam
+	cloudprovider string
+	s3config      S3configparam
 }
 
-// To enable configurable parameter for DFC
-func Config(config Configparam) {
-	// TODO
-	glog.Info("Config function \n")
+func initconfigparam(ctx *dctx, configfile string) {
+	config := getConfig(configfile)
+	// TODO ASSERT if config is nil
+
+	flag.Lookup("log_dir").Value.Set(config.Logdir)
+	ctx.configparam.logdir = config.Logdir
+	ctx.configparam.cachedir = config.Cachedir
+	ctx.configparam.lsparam.proto = dfcstring(config.Proto)
+	ctx.configparam.lsparam.port = dfcstring(config.Port)
+	ctx.configparam.cloudprovider = config.CloudProvider
+	ctx.configparam.s3config.maxconupload = config.Maxconcurrupld
+	ctx.configparam.s3config.maxcondownload = config.Maxconcurrdownld
+	ctx.configparam.s3config.maxpartsize = config.Maxpartsize
+	glog.Infof("Logdir = %s cachedir = %s proto =%s port = %s \n", config.Logdir,
+		config.Cachedir, config.Proto, config.Port)
+}
+
+func getConfig(fpath string) Config {
+	raw, err := ioutil.ReadFile(fpath)
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+	// Currently supporting only one
+	var c Config
+	json.Unmarshal(raw, &c)
+	return c
 }

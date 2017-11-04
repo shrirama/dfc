@@ -6,6 +6,7 @@ package dfc
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"sync"
 
@@ -14,11 +15,9 @@ import (
 )
 
 type dctx struct {
-	wg     sync.WaitGroup
-	cancel chan struct{}
-	//TODO Make it generic to support Multiple cloud vendors
-	s3param S3
-	lsparam listner
+	wg          sync.WaitGroup
+	cancel      chan struct{}
+	configparam ConfigParam
 	// statics or histogram for dfc
 	stat Stats
 
@@ -33,9 +32,14 @@ func init() {
 	ctx = new(dctx)
 
 	ctx.sig = make(chan os.Signal, 1)
-	flag.Parse()
 	ctx.cancel = make(chan struct{})
-	initconfigparam(ctx)
+	flag.Parse()
+	flags := flag.Args()
+	if len(flags) != 1 {
+		fmt.Fprintf(os.Stderr, "Usage: go run dfc config-filename \n")
+		os.Exit(2)
+	}
+	initconfigparam(ctx, flags[0])
 
 }
 
@@ -47,12 +51,11 @@ func Init() (error, *dctx, *group.Group) {
 	// TODO Registration with load balancer
 	// pool.Add(lbregister, noopfunc)
 
+	// Main daemon thread waiting in for loop for signal
 	pool.Add(dstart, dstop)
 
-	// Two HTTP server listening on different ports[8080 and 8081]
-	// Its possible to do single one with multiple handler.
-	pool.Add(websrv1start, websrvstop)
-	pool.Add(websrv2start, websrvstop)
+	// Start webserver
+	pool.Add(websrvstart, websrvstop)
 
 	// Signal handler runnning as third worker
 	pool.Add(sighandler, sigexit)

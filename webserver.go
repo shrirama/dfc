@@ -18,27 +18,17 @@ import (
 )
 
 // Start first instance of webserver listening on port 8080
-func websrv1start() error {
+func websrvstart() error {
 
 	server8080 := http.NewServeMux()
 	server8080.HandleFunc("/", httphdlr)
-	portstring := ":" + ctx.lsparam.port1
+	portstring := ":" + ctx.configparam.lsparam.port
 	ports := string(portstring)
 	return http.ListenAndServe(ports, server8080)
 
 }
 
-// Start second instance of webserver listening on port 8081
-func websrv2start() error {
-	server8081 := http.NewServeMux()
-	server8081.HandleFunc("/", httphdlr)
-	portstring := ":" + ctx.lsparam.port2
-	ports := string(portstring)
-	return http.ListenAndServe(ports, server8081)
-
-}
-
-// Function for handling request coming on port 8080/8081
+// Function for handling request coming on specific port
 
 func httphdlr(w http.ResponseWriter, r *http.Request) {
 
@@ -50,7 +40,7 @@ func httphdlr(w http.ResponseWriter, r *http.Request) {
 	bktname := s[1]
 	keyname := s[2]
 	glog.Infof("Bucket name = %s Key Name = %s \n", bktname, keyname)
-	fname := ctx.s3param.localdir + bktname + "/" + keyname
+	fname := ctx.configparam.cachedir + bktname + "/" + keyname
 	glog.Infof("complete file name = %s \n", fname)
 	//check wheather filename exists in local directory or not
 	_, err := os.Stat(fname)
@@ -86,7 +76,7 @@ func downloadkey(w http.ResponseWriter, downloader *s3manager.Downloader,
 	var err error
 	var bytes int64
 
-	dirname := ctx.s3param.localdir + bucket
+	dirname := ctx.configparam.cachedir + bucket
 	_, err = os.Stat(dirname)
 	if err != nil {
 		// Create bucket-path directory for non existent paths.
