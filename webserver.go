@@ -8,6 +8,7 @@ import (
 	"html"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -40,9 +41,9 @@ func httphdlr(w http.ResponseWriter, r *http.Request) {
 	bktname := s[1]
 	keyname := s[2]
 	glog.Infof("Bucket name = %s Key Name = %s \n", bktname, keyname)
-	fname := ctx.configparam.cachedir + bktname + "/" + keyname
+	fname := ctx.configparam.cachedir + "/" + bktname + "/" + keyname
 	glog.Infof("complete file name = %s \n", fname)
-	//check wheather filename exists in local directory or not
+	// check wheather filename exists in local directory or not
 	_, err := os.Stat(fname)
 	if os.IsNotExist(err) {
 		sess := session.Must(session.NewSessionWithOptions(session.Options{
@@ -76,7 +77,9 @@ func downloadkey(w http.ResponseWriter, downloader *s3manager.Downloader,
 	var err error
 	var bytes int64
 
-	dirname := ctx.configparam.cachedir + bucket
+	pathname := ctx.configparam.cachedir + "/" + bucket + "/" + kname
+	// strips the last part from filepath
+	dirname := filepath.Dir(pathname)
 	_, err = os.Stat(dirname)
 	if err != nil {
 		// Create bucket-path directory for non existent paths.

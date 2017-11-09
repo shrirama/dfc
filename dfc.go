@@ -39,7 +39,11 @@ func init() {
 		fmt.Fprintf(os.Stderr, "Usage: go run dfc config-filename \n")
 		os.Exit(2)
 	}
-	initconfigparam(ctx, flags[0])
+	err := initconfigparam(flags[0])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to do initialization from config file err = %s \n", err)
+		os.Exit(2)
+	}
 
 }
 
@@ -50,6 +54,12 @@ func Init() (error, *dctx, *group.Group) {
 	pool = new(group.Group)
 	// TODO Registration with load balancer
 	// pool.Add(lbregister, noopfunc)
+
+	//		err = initconfigparam(conffile)
+	//if err != nil {
+	//	glog.Errorf("Failed to do initialization from config file err = %s \n", err)
+	//	return err, nil, nil
+	//}
 
 	// Main daemon thread waiting in for loop for signal
 	pool.Add(dstart, dstop)
