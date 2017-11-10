@@ -29,19 +29,26 @@ var ctx *dctx
 
 // Initialization
 func init() {
-	ctx = new(dctx)
+	var stype string
+	var conffile string
 
-	ctx.sig = make(chan os.Signal, 1)
-	ctx.cancel = make(chan struct{})
+	flag.StringVar(&stype, "type", "", "a string var")
+	flag.StringVar(&conffile, "configfile", "", "a string var")
+
 	flag.Parse()
-	flags := flag.Args()
-	if len(flags) != 1 {
-		fmt.Fprintf(os.Stderr, "Usage: go run dfc config-filename \n")
+	// TODO Type should be either Proxy or Server.
+
+	if conffile == "" || (stype != "proxy" && stype != "server") {
+		fmt.Fprintf(os.Stderr, "Usage: go run dfc type=[proxy][server] configfile=name.json stype = %s \n", stype)
 		os.Exit(2)
 	}
-	err := initconfigparam(flags[0])
+
+	ctx = new(dctx)
+	ctx.sig = make(chan os.Signal, 1)
+	ctx.cancel = make(chan struct{})
+	err := initconfigparam(conffile)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to do initialization from config file err = %s \n", err)
+		fmt.Fprintf(os.Stderr, "Failed to do initialization from config file = %s err = %s \n", conffile, err)
 		os.Exit(2)
 	}
 
