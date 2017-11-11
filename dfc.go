@@ -18,10 +18,22 @@ type dctx struct {
 	wg          sync.WaitGroup
 	cancel      chan struct{}
 	configparam ConfigParam
+	// True will imply running as Proxy and False will imply Server
+	proxy bool
+	// Will be only populate for server.
+	smap map[string]serverinfo
+
 	// statics or histogram for dfc
 	stat Stats
 
 	sig chan os.Signal
+}
+
+// Server Registration info
+type serverinfo struct {
+	port string
+	ip   string
+	// TODO Need to expand
 }
 
 // Global context
@@ -50,6 +62,12 @@ func init() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to do initialization from config file = %s err = %s \n", conffile, err)
 		os.Exit(2)
+	}
+	if stype == "proxy" {
+		ctx.proxy = true
+		ctx.smap = make(map[string]serverinfo)
+	} else {
+		ctx.proxy = false
 	}
 
 }

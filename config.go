@@ -121,6 +121,6 @@ func getConfig(fpath string) []Config {
 	// Currently supporting only one
 	var c []Config
 	json.Unmarshal(raw, &c)
-	glog.Infof("GetConfig: The json entry %v \n", c)
+	//glog.Infof("GetConfig: The json entry %v \n", c)
 	return c
 }
