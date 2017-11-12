@@ -19,6 +19,7 @@ type dfcstring string
 type Config struct {
 	Proto            string `json:"proto"`
 	Port             string `json:"port"`
+	Id               string `json:id`
 	Cachedir         string `json:"cachedir"`
 	Logdir           string `json:"logdir"`
 	CloudProvider    string `json"cloudprovider"`
@@ -59,6 +60,7 @@ type Listnerparam struct {
 type ConfigParam struct {
 	logdir        string
 	cachedir      string
+	Id            string
 	lsparam       Listnerparam
 	cloudprovider string
 	s3config      S3configparam
@@ -67,7 +69,7 @@ type ConfigParam struct {
 func initconfigparam(configfile string) error {
 	var err error
 	conf := getConfig(configfile)
-	// TODO ASSERT if conf is nil
+	// TODO ASSERT if conf is nil or more than one
 	for _, config := range conf {
 
 		flag.Lookup("log_dir").Value.Set(config.Logdir)
@@ -75,12 +77,13 @@ func initconfigparam(configfile string) error {
 		ctx.configparam.cachedir = config.Cachedir
 		ctx.configparam.lsparam.proto = dfcstring(config.Proto)
 		ctx.configparam.lsparam.port = dfcstring(config.Port)
+		ctx.configparam.Id = config.Id
 		ctx.configparam.cloudprovider = config.CloudProvider
 		ctx.configparam.s3config.maxconupload = config.Maxconcurrupld
 		ctx.configparam.s3config.maxcondownload = config.Maxconcurrdownld
 		ctx.configparam.s3config.maxpartsize = config.Maxpartsize
-		glog.Infof("Logdir = %s cachedir = %s proto =%s port = %s \n", config.Logdir,
-			config.Cachedir, config.Proto, config.Port)
+		glog.Infof("Logdir = %s Cachedir = %s Proto =%s Port = %s Id = %s \n", config.Logdir,
+			config.Cachedir, config.Proto, config.Port, config.Id)
 		err = createdir(config.Logdir)
 		if err != nil {
 			glog.Errorf("Failed to create Logdir = %s err = %s \n", config.Logdir, err)

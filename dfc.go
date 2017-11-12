@@ -33,6 +33,7 @@ type dctx struct {
 type serverinfo struct {
 	port string
 	ip   string
+	id   string // Should be Unique among all Nodes
 	// TODO Need to expand
 }
 
