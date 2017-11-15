@@ -1,6 +1,7 @@
 // CopyRight Notice: All rights reserved
 //
 //
+
 package dfc
 
 import (
@@ -18,7 +19,7 @@ import (
 	"github.com/golang/glog"
 )
 
-// Start first instance of webserver listening on port 8080
+// Start instance of webserver listening on specific port.
 func websrvstart() error {
 	// For server it needs to register with Proxy client before it can start
 	if ctx.proxy == false {
@@ -27,16 +28,15 @@ func websrvstart() error {
 			return err
 		}
 	}
-	server8080 := http.NewServeMux()
-	server8080.HandleFunc("/", httphdlr)
+	wbsvport := http.NewServeMux()
+	wbsvport.HandleFunc("/", httphdlr)
 	portstring := ":" + ctx.configparam.lsparam.port
 	ports := string(portstring)
-	return http.ListenAndServe(ports, server8080)
+	return http.ListenAndServe(ports, wbsvport)
 
 }
 
-// Function for handling request coming on specific port
-
+// Function for handling request  on specific port
 func httphdlr(w http.ResponseWriter, r *http.Request) {
 
 	glog.Infof("httphdlr Request from %s: %s %q \n", r.RemoteAddr, r.Method, r.URL)
@@ -48,45 +48,66 @@ func httphdlr(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Servhdlr function serves request coming to listening port of DFC's Storage Server/.
+// It supports GET method only and return 405 error non supported Methods.
+// This function checks wheather key exists locally or not. If key does not exist
+// it prepares session and download objects to fetch remote object from S3.
 func servhdlr(w http.ResponseWriter, r *http.Request) {
 
-	// Path will have following format
-	// /<bucketname>/keypath
-	s := strings.SplitN(html.EscapeString(r.URL.Path), "/", 3)
-	bktname := s[1]
-	keyname := s[2]
-	glog.Infof("Bucket name = %s Key Name = %s \n", bktname, keyname)
-	fname := ctx.configparam.cachedir + "/" + bktname + "/" + keyname
-	glog.Infof("complete file name = %s \n", fname)
-	// check wheather filename exists in local directory or not
-	_, err := os.Stat(fname)
-	if os.IsNotExist(err) {
-		sess := session.Must(session.NewSessionWithOptions(session.Options{
-			SharedConfigState: session.SharedConfigEnable,
-		}))
+	switch r.Method {
+	case "GET":
+		// Path will have following format
+		// /<bucketname>/keypath
+		s := strings.SplitN(html.EscapeString(r.URL.Path), "/", 3)
+		bktname := s[1]
+		keyname := s[2]
+		glog.Infof("Bucket name = %s Key Name = %s \n", bktname, keyname)
+		fname := ctx.configparam.cachedir + "/" + bktname + "/" + keyname
+		glog.Infof("complete file name = %s \n", fname)
 
-		// Create S3 Downloader
-		downloader := s3manager.NewDownloader(sess)
-		ctx.wg.Add(1)
-		// Channel to wait for completion of download
-		cmpltchan := make(chan bool)
-		go downloadkey(w, downloader, fname, bktname, keyname, cmpltchan)
-		//wait for it to complete
-		<-cmpltchan
-		glog.Infof("httphdlr Bucket = %s Key =%s download completed \n", bktname, keyname)
-	} else {
-		glog.Infof("Bucket = %s Key =%s exist \n", bktname, keyname)
+		// check wheather filename exists in local directory or not
+		_, err := os.Stat(fname)
+		if os.IsNotExist(err) {
+			// TODO optimization to avoid creating sessions for each request.
+			sess := session.Must(session.NewSessionWithOptions(session.Options{
+				SharedConfigState: session.SharedConfigEnable,
+			}))
+
+			// Create S3 Downloader
+			// TODO Optimize values for downloader options, it currently dowloads with 5MB chunk
+			// and 5 concurrent downloads.
+			downloader := s3manager.NewDownloader(sess)
+			ctx.httprqwg.Add(1)
+
+			// Channel to wait for completion of download
+			cmpltchan := make(chan bool)
+			go downloadkey(w, downloader, fname, bktname, keyname, cmpltchan)
+
+			// Wait for it to complete
+			<-cmpltchan
+			glog.Infof("httphdlr Bucket = %s Key =%s download completed \n", bktname, keyname)
+		} else {
+			glog.Infof("Bucket = %s Key =%s exist \n", bktname, keyname)
+		}
+		fmt.Fprintf(w, "DFC-Daemon %q", html.EscapeString(r.URL.Path))
+
+	case "POST":
+	case "PUT":
+	case "DELETE":
+	default:
+		glog.Errorf("Invalid  Request from %s: %s %q \n", r.RemoteAddr, r.Method, r.URL)
+		http.Error(w, http.StatusText(http.StatusMethodNotAllowed),
+			http.StatusMethodNotAllowed)
+
 	}
-	fmt.Fprintf(w, "DFC-Daemon %q", html.EscapeString(r.URL.Path))
 
 }
 
-// Download  key from S3
-
+// This function download S3 object into local file.
 func downloadkey(w http.ResponseWriter, downloader *s3manager.Downloader,
 	fname string, bucket string, kname string, donechan chan bool) {
 
-	defer ctx.wg.Done()
+	defer ctx.httprqwg.Done()
 
 	var file *os.File
 	var err error
@@ -115,8 +136,6 @@ func downloadkey(w http.ResponseWriter, downloader *s3manager.Downloader,
 		glog.Errorf("Unable to create file = %s err = %q \n", fname, err)
 		goto err
 	}
-	//sleep for testing purpose only
-	//time.Sleep(30 * time.Second)
 	bytes, err = downloader.Download(file, &s3.GetObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(kname),
@@ -138,9 +157,10 @@ err:
 
 }
 
+// Stop Http service .It waits for http outstanding requests to be completed
+// before returning.
 func websrvstop(err error) {
 	glog.Infof("The NVWebServer worker was interrupted with: %v\n", err)
 	// Wait for completion of all pending HTTP requests
-	ctx.wg.Wait()
-	//ctx.ln.Close()
+	ctx.httprqwg.Wait()
 }

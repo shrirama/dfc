@@ -1,3 +1,7 @@
+// CopyRight Notice: All rights reserved
+//
+//
+
 package dfc
 
 import (
@@ -6,8 +10,7 @@ import (
 	"github.com/golang/glog"
 )
 
-// It will do hash on Path+Port+ID and will pick storage server with Max Hash value.
-
+// It will do hash on Normalized Path +Port+ ID and will pick storage server with Max Hash value.
 func doHashfindServer(url string) string {
 	var sid string
 	var max uint32

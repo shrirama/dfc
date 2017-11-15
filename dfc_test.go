@@ -1,21 +1,23 @@
+// CopyRight Notice: All rights reserved
+//
+//
+
 package dfc
 
 import (
-	"os"
 	"testing"
 	"time"
 )
 
 func TestInitRunStop(t *testing.T) {
-	os.Args = []string{"/dfc_conf1.json"}
 	err, ctx1, pool1 := Init()
 	if err != nil {
 		t.Errorf(" 1A: Error in DFC initialization ")
 		return
 	}
 	go Run(pool1)
-	// stop after 60 seconds
-	time.Sleep(60 * time.Second)
+	// stop after 6000 seconds
+	time.Sleep(6000 * time.Second)
 	Stop(ctx1)
 }
 

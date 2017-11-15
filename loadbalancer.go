@@ -1,6 +1,7 @@
 // CopyRight Notice: All rights reserved
 //
 //
+
 package dfc
 
 import "github.com/golang/glog"

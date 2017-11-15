@@ -6,6 +6,7 @@ package dfc
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -20,6 +21,7 @@ type Config struct {
 	Proto            string `json:"proto"`
 	Port             string `json:"port"`
 	Id               string `json:id`
+	ProxyClientURL   string `json.proxyclienturl`
 	Cachedir         string `json:"cachedir"`
 	Logdir           string `json:"logdir"`
 	CloudProvider    string `json"cloudprovider"`
@@ -33,48 +35,92 @@ type Config struct {
 
 // Configurable Parameters for Amazon S3
 type S3configparam struct {
-	// Concurrent Upload
+
+	// Concurrent Upload for a session.
 	maxconupload uint32
-	// Concurent Download
+
+	// Concurent Download for a session.
 	maxcondownload uint32
-	// Maximum part size
+
+	// Maximum part size for Upload and Download. This size is used for buffering.
 	maxpartsize uint64
 }
 
 // Configurable parameter for LRU cache
 type Cacheparam struct {
+
 	// HighwaterMark for free storage before flusher moves it to Cloud
 	highwamark uint64
+
 	// TODO
 }
 
-// Listner Port and Type for DFC service.It's constant aka non configurable.
+// Listner Port and Type for DFC service.
 type Listnerparam struct {
-	// Prototype : tcp
+
+	// Prototype : tcp, udp
 	proto dfcstring
+
 	// Listening port.
 	port dfcstring
 }
 
-// Configurable parameters for DFC service
-type ConfigParam struct {
-	logdir        string
-	cachedir      string
-	Id            string
-	lsparam       Listnerparam
-	cloudprovider string
-	s3config      S3configparam
+// ProxyClient Parameters
+type Proxyclientparam struct {
+
+	// ProxyClientURL is used by DFC' Storage Server Instances to
+	// register with Proxy Client. It is specified as
+	// http://[<ipaddr>][localhost]:<portnum>
+	pclienturl dfcstring
 }
 
+// Configurable parameters for DFC Instance.
+// User specified configparams override default parameters.
+type ConfigParam struct {
+
+	// Logdir refers to Logdirectory for GLOG package to Print logs.
+	logdir string
+
+	// Cachedir refers to path on local host on which objects are cached as local file.
+	cachedir string
+
+	//Id need to be unique across all DFC instance.
+	// Default ID will be MAC ID
+	Id string
+
+	// Pcparam refers to ProxyClientURL.DFC's storage instance uses this URL to register
+	// with DFC's ProxyClient. DFC can support multiple ProxyClientURL across
+	// DFC Cluster to do load balancing but we are currently supporting only one.
+	pcparam Proxyclientparam
+
+	//Lsparam refers to Listening Parametrs (Port and Protocol)
+	lsparam Listnerparam
+
+	// Cloudprovider refers to different Cloud Providers/services.
+	// DFC currently supports only amazon S3. It's possible to do authentication, optimization
+	// based on backend cloud provider. (Currently not Used)
+	cloudprovider string
+
+	// S3config refers to S3 Configurable Parameters.
+	s3config S3configparam
+}
+
+// Read JSON Config file and populate DFC Instance's config parameters.
+// We currently support only one configuration per JSON file.
 func initconfigparam(configfile string) error {
 	var err error
 	conf := getConfig(configfile)
-	// TODO ASSERT if conf is nil or more than one
+	if len(conf) != 1 {
+		errstr := fmt.Sprintf("Configuration data length is %d, Needed 1 \n", len(conf))
+		glog.Errorf(errstr)
+		return errors.New(errstr)
+	}
 	for _, config := range conf {
 
 		flag.Lookup("log_dir").Value.Set(config.Logdir)
 		ctx.configparam.logdir = config.Logdir
 		ctx.configparam.cachedir = config.Cachedir
+		ctx.configparam.pcparam.pclienturl = dfcstring(config.ProxyClientURL)
 		ctx.configparam.lsparam.proto = dfcstring(config.Proto)
 		ctx.configparam.lsparam.port = dfcstring(config.Port)
 		ctx.configparam.Id = config.Id
@@ -98,6 +144,8 @@ func initconfigparam(configfile string) error {
 	return err
 }
 
+// Helper function to Create specified directory. It will also create complete path, not
+// just short path.(similar to mkdir -p)
 func createdir(dirname string) error {
 	var err error
 	_, err = os.Stat(dirname)
@@ -115,13 +163,14 @@ func createdir(dirname string) error {
 	return err
 
 }
+
+// Read JSON config file and unmarshal json content into config struct.
 func getConfig(fpath string) []Config {
 	raw, err := ioutil.ReadFile(fpath)
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
-	// Currently supporting only one
 	var c []Config
 	json.Unmarshal(raw, &c)
 	//glog.Infof("GetConfig: The json entry %v \n", c)

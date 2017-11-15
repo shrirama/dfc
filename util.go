@@ -1,3 +1,7 @@
+// CopyRight Notice: All rights reserved
+//
+//
+
 package dfc
 
 import (
@@ -5,7 +9,7 @@ import (
 	"os"
 )
 
-// Returns first IP address of Running machine
+// Returns first IP address of host.
 func getipaddr() string {
 	var ipaddr string
 	addrs, err := net.InterfaceAddrs()
