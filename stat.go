@@ -6,7 +6,7 @@ package dfc
 
 import "github.com/golang/glog"
 
-// Provides stats for DFC
+// Stats structure returns in-memory statistics information of a DFC instance.
 type Stats struct {
 
 	// Total count of key/object found locally
@@ -19,7 +19,8 @@ type Stats struct {
 	rdmaxsize uint64
 }
 
-// Provides stats for DFC instance
+// Stat function will provide in-memory statistics for local DFC instance.
+// TODO Yet to be implemented.
 func Stat() Stats {
 	glog.Info("Stat function \n")
 	// TODO

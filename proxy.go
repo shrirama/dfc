@@ -23,23 +23,36 @@ var (
 )
 
 const (
-	MaxIdleConnections int = 20
-	RequestTimeout     int = 5
+
+	// Maximum Idle connections allowed
+	maxidleconnection int = 20
+
+	// Timeout in seconds for HTTP request
+	requesttimeout int = 5
 )
 
 const (
-	IP   = "ip"
+
+	// IP refers to Local IP address of DFC instance.
+	IP = "ip"
+
+	// PORT is specified as positive integer, it
 	PORT = "port"
-	ID   = "id"
+
+	// ID uniquely identifies a Node in DFC cluster.
+	// It is specified as type string.
+	// User can specifiy ID through config file or DFC node can auto
+	// generate based on MAC ID.
+	ID = "id"
 )
 
 // createHTTPClient for connection re-use
 func createHTTPClient() *http.Client {
 	client := &http.Client{
 		Transport: &http.Transport{
-			MaxIdleConnsPerHost: MaxIdleConnections,
+			MaxIdleConnsPerHost: maxidleconnection,
 		},
-		Timeout: time.Duration(RequestTimeout) * time.Second,
+		Timeout: time.Duration(requesttimeout) * time.Second,
 	}
 
 	return client
@@ -109,13 +122,12 @@ func proxyhdlr(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// It registerss DFC's storage Server Instance with DFC's Proxy Client.
+// It registers DFC's storage Server Instance with DFC's Proxy Client.
 // A storage server uses ID, IP address and Port for registration with Proxy Client.
 func registerwithproxy() error {
 	httpClient = createHTTPClient()
-	var err error
 	// Proxy well known address
-	proxyUrl := ctx.configparam.pcparam.pclienturl
+	proxyURL := ctx.configparam.pcparam.pclienturl
 	resource := "/"
 	data := url.Values{}
 	ipaddr := getipaddr()
@@ -123,9 +135,9 @@ func registerwithproxy() error {
 	// Posting IP address, Port ID and ID as part of storage server registration.
 	data.Set(IP, ipaddr)
 	data.Add(PORT, string(ctx.configparam.lsparam.port))
-	data.Add(ID, string(ctx.configparam.Id))
+	data.Add(ID, string(ctx.configparam.ID))
 
-	u, _ := url.ParseRequestURI(string(proxyUrl))
+	u, _ := url.ParseRequestURI(string(proxyURL))
 	u.Path = resource
 	urlStr := u.String()
 	glog.Infof("Proxy URL : %s \n ", string(urlStr))
@@ -144,19 +156,18 @@ func registerwithproxy() error {
 	if err != nil && response == nil {
 		glog.Errorf("Error sending request to Proxy server %+v \n", err)
 		return err
-	} else {
-		// Close the connection to reuse it
-		defer response.Body.Close()
-
-		// Let's check if the work actually is done
-		// Did we get 200 OK responsea?
-		body, err := ioutil.ReadAll(response.Body)
-		if err != nil {
-			glog.Errorf("Couldn't parse response body. %+v \n", err)
-		}
-
-		glog.Infof("Response Body: %s \n", string(body))
 	}
+	// Close the connection to reuse it
+	defer response.Body.Close()
+
+	// Let's check if the work actually is done
+	// Did we get 200 OK responsea?
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		glog.Errorf("Couldn't parse response body. %+v \n", err)
+	}
+
+	glog.Infof("Response Body: %s \n", string(body))
 	return err
 }
 

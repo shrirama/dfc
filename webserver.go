@@ -22,9 +22,10 @@ import (
 // Start instance of webserver listening on specific port.
 func websrvstart() error {
 	// For server it needs to register with Proxy client before it can start
-	if ctx.proxy == false {
+	if !ctx.proxy {
 		err := registerwithproxy()
 		if err != nil {
+			glog.Errorf("Hit Error %q", err)
 			return err
 		}
 	}
@@ -41,17 +42,25 @@ func httphdlr(w http.ResponseWriter, r *http.Request) {
 
 	glog.Infof("httphdlr Request from %s: %s %q \n", r.RemoteAddr, r.Method, r.URL)
 
-	if ctx.proxy {
-		proxyhdlr(w, r)
+	// Stop accepting new http request during Main daemon stop.
+	if !ctx.stopinprogress {
+		if ctx.proxy {
+			proxyhdlr(w, r)
+		} else {
+			servhdlr(w, r)
+		}
 	} else {
-		servhdlr(w, r)
+		glog.Infof(" All daemons and handler are being stopped \n")
+		http.Error(w, http.StatusText(http.StatusInternalServerError),
+			http.StatusInternalServerError)
 	}
+
 }
 
-// Servhdlr function serves request coming to listening port of DFC's Storage Server/.
+// Servhdlr function serves request coming to listening port of DFC's Storage Server.
 // It supports GET method only and return 405 error non supported Methods.
-// This function checks wheather key exists locally or not. If key does not exist
-// it prepares session and download objects to fetch remote object from S3.
+// This function checks wheather key exists locally or not. If key does not exist locally
+// it prepares session and download objects from S3 to path on local host.
 func servhdlr(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
@@ -79,18 +88,18 @@ func servhdlr(w http.ResponseWriter, r *http.Request) {
 			downloader := s3manager.NewDownloader(sess)
 			ctx.httprqwg.Add(1)
 
-			// Channel to wait for completion of download
-			cmpltchan := make(chan bool)
-			go downloadkey(w, downloader, fname, bktname, keyname, cmpltchan)
-
-			// Wait for it to complete
-			<-cmpltchan
-			glog.Infof("httphdlr Bucket = %s Key =%s download completed \n", bktname, keyname)
+			err = downloadobject(w, downloader, fname, bktname, keyname)
+			if err != nil {
+				http.Error(w, http.StatusText(http.StatusInternalServerError),
+					http.StatusInternalServerError)
+			} else {
+				glog.Infof("httphdlr Bucket = %s Key =%s download completed \n", bktname, keyname)
+				fmt.Fprintf(w, "DFC-Daemon %q", html.EscapeString(r.URL.Path))
+			}
 		} else {
 			glog.Infof("Bucket = %s Key =%s exist \n", bktname, keyname)
+			fmt.Fprintf(w, "DFC-Daemon %q", html.EscapeString(r.URL.Path))
 		}
-		fmt.Fprintf(w, "DFC-Daemon %q", html.EscapeString(r.URL.Path))
-
 	case "POST":
 	case "PUT":
 	case "DELETE":
@@ -104,8 +113,8 @@ func servhdlr(w http.ResponseWriter, r *http.Request) {
 }
 
 // This function download S3 object into local file.
-func downloadkey(w http.ResponseWriter, downloader *s3manager.Downloader,
-	fname string, bucket string, kname string, donechan chan bool) {
+func downloadobject(w http.ResponseWriter, downloader *s3manager.Downloader,
+	fname string, bucket string, kname string) error {
 
 	defer ctx.httprqwg.Done()
 
@@ -123,18 +132,18 @@ func downloadkey(w http.ResponseWriter, downloader *s3manager.Downloader,
 			err = os.MkdirAll(dirname, 0755)
 			if err != nil {
 				glog.Errorf("Failed to create bucket dir = %s err = %q \n", dirname, err)
-				goto err
+				return err
 			}
 		} else {
 			glog.Errorf("Failed to do stat = %s err = %q \n", dirname, err)
-			goto err
+			return err
 		}
 	}
 
 	file, err = os.Create(fname)
 	if err != nil {
 		glog.Errorf("Unable to create file = %s err = %q \n", fname, err)
-		goto err
+		return err
 	}
 	bytes, err = downloader.Download(file, &s3.GetObjectInput{
 		Bucket: aws.String(bucket),
@@ -143,17 +152,11 @@ func downloadkey(w http.ResponseWriter, downloader *s3manager.Downloader,
 	if err != nil {
 		glog.Errorf("Failed to download key %q from bucket %q, %q",
 			kname, bucket, err)
-		goto err
 	} else {
-		donechan <- true
 		glog.Infof("Successfully downloaded file %q size  = %d bytes \n",
 			file.Name(), bytes)
-		return
 	}
-err:
-	http.Error(w, http.StatusText(http.StatusInternalServerError),
-		http.StatusInternalServerError)
-	donechan <- true
+	return err
 
 }
 

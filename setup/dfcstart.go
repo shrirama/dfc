@@ -9,7 +9,7 @@ import (
 
 func main() {
 	//conf1 := os.Getenv("DFC_CONF1")
-	err, ctx1, pool1 := dfc.Init()
+	Dctx1, pool1, err := dfc.Init()
 	if err != nil {
 		fmt.Println(" 1A: Error in DFC initialization ")
 		return

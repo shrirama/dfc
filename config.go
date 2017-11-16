@@ -17,10 +17,15 @@ import (
 
 type dfcstring string
 
+// Config structure specifies Configuration Parameters for DFC Instance
+// (Proxy Client or Storage Server) in JSON format.
+// Config Parameters are specified during DFC service instantiation.
+//  These Parameter overrides default paramemters.
+// TODO Get and Set Config Parameter functionality/interface(s).
 type Config struct {
 	Proto            string `json:"proto"`
 	Port             string `json:"port"`
-	Id               string `json:id`
+	ID               string `json:id`
 	ProxyClientURL   string `json.proxyclienturl`
 	Cachedir         string `json:"cachedir"`
 	Logdir           string `json:"logdir"`
@@ -33,7 +38,7 @@ type Config struct {
 // Need to define structure for each cloud vendor like S3 , Azure, Cloud etc
 // AWS S3 configurable parameters
 
-// Configurable Parameters for Amazon S3
+// S3configparam specifies  Amazon S3 specific configuration parameters.
 type S3configparam struct {
 
 	// Concurrent Upload for a session.
@@ -46,7 +51,8 @@ type S3configparam struct {
 	maxpartsize uint64
 }
 
-// Configurable parameter for LRU cache
+// Cacheparam specifies parameters for LRU cache.
+// TODO DFC can support different caching algorithm such as LRU, Most Frequently Used.
 type Cacheparam struct {
 
 	// HighwaterMark for free storage before flusher moves it to Cloud
@@ -55,7 +61,8 @@ type Cacheparam struct {
 	// TODO
 }
 
-// Listner Port and Type for DFC service.
+// Listnerparam specifies listner Parameter for DFC instance.
+// User can specify Port and Protocol(TCP/UDP) as part of Listnerparam.
 type Listnerparam struct {
 
 	// Prototype : tcp, udp
@@ -65,7 +72,8 @@ type Listnerparam struct {
 	port dfcstring
 }
 
-// ProxyClient Parameters
+// Proxyclientparam specifies well known http address for Proxy Client.
+// It is specified as http://<ipaddress>:<portnumber>
 type Proxyclientparam struct {
 
 	// ProxyClientURL is used by DFC' Storage Server Instances to
@@ -74,7 +82,7 @@ type Proxyclientparam struct {
 	pclienturl dfcstring
 }
 
-// Configurable parameters for DFC Instance.
+// ConfigParam specifies configurable parameters for DFC instance.
 // User specified configparams override default parameters.
 type ConfigParam struct {
 
@@ -84,9 +92,9 @@ type ConfigParam struct {
 	// Cachedir refers to path on local host on which objects are cached as local file.
 	cachedir string
 
-	//Id need to be unique across all DFC instance.
+	//ID need to be unique across all DFC instance.
 	// Default ID will be MAC ID
-	Id string
+	ID string
 
 	// Pcparam refers to ProxyClientURL.DFC's storage instance uses this URL to register
 	// with DFC's ProxyClient. DFC can support multiple ProxyClientURL across
@@ -123,13 +131,13 @@ func initconfigparam(configfile string) error {
 		ctx.configparam.pcparam.pclienturl = dfcstring(config.ProxyClientURL)
 		ctx.configparam.lsparam.proto = dfcstring(config.Proto)
 		ctx.configparam.lsparam.port = dfcstring(config.Port)
-		ctx.configparam.Id = config.Id
+		ctx.configparam.ID = config.ID
 		ctx.configparam.cloudprovider = config.CloudProvider
 		ctx.configparam.s3config.maxconupload = config.Maxconcurrupld
 		ctx.configparam.s3config.maxcondownload = config.Maxconcurrdownld
 		ctx.configparam.s3config.maxpartsize = config.Maxpartsize
-		glog.Infof("Logdir = %s Cachedir = %s Proto =%s Port = %s Id = %s \n", config.Logdir,
-			config.Cachedir, config.Proto, config.Port, config.Id)
+		glog.Infof("Logdir = %s Cachedir = %s Proto =%s Port = %s ID = %s \n", config.Logdir,
+			config.Cachedir, config.Proto, config.Port, config.ID)
 		err = createdir(config.Logdir)
 		if err != nil {
 			glog.Errorf("Failed to create Logdir = %s err = %s \n", config.Logdir, err)

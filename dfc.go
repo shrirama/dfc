@@ -2,7 +2,7 @@
 //
 //
 
-// DFC refers to Distributed File Cache.It serves as Write Through Pesistent
+// Package dfc refers to Distributed File Cache.It serves as Write Through Pesistent
 // Cache for S3 Objects. It's designed to support large number of caching(storage) servers handling
 // MultiPetaByte workload. DFC can be run as Proxy Client or Storage Server Instance.
 // Proxy Client need to be started first and it can work without any DFC's storage server instance
@@ -19,8 +19,8 @@ import (
 	"github.com/oklog/oklog/pkg/group"
 )
 
-// dctx : DFC context is context for each DFC instance(Proxy or Storage Servers).
-type dctx struct {
+// Dctx : DFC context is context for each DFC instance(Proxy or Storage Servers).
+type Dctx struct {
 	// WaitGroup for completing Http Requests.
 	httprqwg sync.WaitGroup
 
@@ -45,6 +45,10 @@ type dctx struct {
 
 	// Channel for  cancellation/termination signal.
 	sig chan os.Signal
+
+	// stopinprogress is set during main daemon thread stopping. DFC instance cannot
+	// accept new http requests once stopinprogress is set.
+	stopinprogess bool
 }
 
 // Server Registration info
@@ -63,7 +67,7 @@ type serverinfo struct {
 }
 
 // Global context
-var ctx *dctx
+var ctx *Dctx
 
 // Initialization
 func init() {
@@ -85,7 +89,7 @@ func init() {
 		os.Exit(2)
 	}
 
-	ctx = new(dctx)
+	ctx = new(Dctx)
 	ctx.sig = make(chan os.Signal, 1)
 	ctx.cancel = make(chan struct{})
 	err := initconfigparam(conffile)
@@ -102,8 +106,8 @@ func init() {
 
 }
 
-// Initialize DFC Instance's Process Group.
-func Init() (error, *dctx, *group.Group) {
+// Init function initialize DFC Instance's Process Group.
+func Init() (*Dctx, *group.Group, error) {
 	var pool *group.Group
 	var err error
 	pool = new(group.Group)
@@ -116,7 +120,7 @@ func Init() (error, *dctx, *group.Group) {
 
 	// Signal handler runnning as third worker
 	pool.Add(sighandler, sigexit)
-	return err, ctx, pool
+	return ctx, pool, err
 
 }
 
@@ -128,7 +132,7 @@ func Run(pool *group.Group) {
 }
 
 // Stop DFC instance. similar to user pressing CTL-C or interrupt
-func Stop(ctx *dctx) {
+func Stop(ctx *Dctx) {
 	glog.Infof(" Sending stop signal to DFC Main worker \n")
 	close(ctx.cancel)
 }
@@ -150,6 +154,11 @@ func dstart() error {
 // Daemon exit function.
 func dstop(err error) {
 	glog.Infof("The Mainworker was interrupted with: %v\n", err)
+
+	// Not protecting it through mutex or atomic update for performance reason.
+	// It will not cause any correctness issue.
+	// Atmost some http new request may get submitted during stop process.
+	ctx.stopinprogress = true
 	glog.Flush()
 	close(ctx.cancel)
 }
