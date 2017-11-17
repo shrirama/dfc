@@ -25,14 +25,14 @@ type dfcstring string
 type Config struct {
 	Proto            string `json:"proto"`
 	Port             string `json:"port"`
-	ID               string `json:id`
-	ProxyClientURL   string `json.proxyclienturl`
+	ID               string `json:"id"`
+	ProxyClientURL   string `json:"proxyclienturl"`
 	Cachedir         string `json:"cachedir"`
 	Logdir           string `json:"logdir"`
-	CloudProvider    string `json"cloudprovider"`
-	Maxconcurrdownld uint32 `json"maxconcurrdownld"`
-	Maxconcurrupld   uint32 `json"maxconcurrupld"`
-	Maxpartsize      uint64 `json"maxpartsize"`
+	CloudProvider    string `json:"cloudprovider"`
+	Maxconcurrdownld uint32 `json:"maxconcurrdownld"`
+	Maxconcurrupld   uint32 `json:"maxconcurrupld"`
+	Maxpartsize      uint64 `json:"maxpartsize"`
 }
 
 // Need to define structure for each cloud vendor like S3 , Azure, Cloud etc
@@ -124,7 +124,12 @@ func initconfigparam(configfile string) error {
 	}
 	for _, config := range conf {
 
-		flag.Lookup("log_dir").Value.Set(config.Logdir)
+		err = flag.Lookup("log_dir").Value.Set(config.Logdir)
+		if err != nil {
+			// Not fatal as it will use default logfile under /tmp/
+			glog.Errorf("Failed to set glog file name = %v \n", err)
+		}
+
 		ctx.configparam.logdir = config.Logdir
 		ctx.configparam.cachedir = config.Cachedir
 		ctx.configparam.pcparam.pclienturl = dfcstring(config.ProxyClientURL)

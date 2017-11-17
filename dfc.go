@@ -95,8 +95,9 @@ func init() {
 	ctx.cancel = make(chan struct{})
 	err := initconfigparam(conffile)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to do initialization from config file = %s err = %s \n", conffile, err)
-		os.Exit(2)
+		// Will exit process and  dump the stack
+		glog.Fatalf("Failed to do initialization from config file = %s err = %v \n",
+			conffile, err)
 	}
 	if stype == "proxy" {
 		ctx.proxy = true
