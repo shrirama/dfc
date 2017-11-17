@@ -116,8 +116,7 @@ type ConfigParam struct {
 // Read JSON Config file and populate DFC Instance's config parameters.
 // We currently support only one configuration per JSON file.
 func initconfigparam(configfile string) error {
-	var err error
-	conf := getConfig(configfile)
+	conf, err := getConfig(configfile)
 	if len(conf) != 1 {
 		errstr := fmt.Sprintf("Configuration data length is %d, Needed 1 \n", len(conf))
 		glog.Errorf(errstr)
@@ -143,7 +142,7 @@ func initconfigparam(configfile string) error {
 			glog.Errorf("Failed to create Logdir = %s err = %s \n", config.Logdir, err)
 			return err
 		}
-		err := createdir(config.Cachedir)
+		err = createdir(config.Cachedir)
 		if err != nil {
 			glog.Errorf("Failed to create Cachedir = %s err = %s \n", config.Cachedir, err)
 			return err
@@ -173,14 +172,17 @@ func createdir(dirname string) error {
 }
 
 // Read JSON config file and unmarshal json content into config struct.
-func getConfig(fpath string) []Config {
+func getConfig(fpath string) ([]Config, error) {
 	raw, err := ioutil.ReadFile(fpath)
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
 	var c []Config
-	json.Unmarshal(raw, &c)
-	//glog.Infof("GetConfig: The json entry %v \n", c)
-	return c
+	err = json.Unmarshal(raw, &c)
+	if err != nil {
+		glog.Errorf("Failed to unmarshal JSON file = %s err = %v \n", fpath, err)
+		return c, err
+	}
+	return c, nil
 }

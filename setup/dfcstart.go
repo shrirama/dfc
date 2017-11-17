@@ -9,9 +9,9 @@ import (
 
 func main() {
 	//conf1 := os.Getenv("DFC_CONF1")
-	Dctx1, pool1, err := dfc.Init()
+	ctx1, pool1, err := dfc.Init()
 	if err != nil {
-		fmt.Println(" 1A: Error in DFC initialization ")
+		fmt.Println(" 1A: Error in DFC initialization  %v \n", err)
 		return
 	}
 	go dfc.Run(pool1)

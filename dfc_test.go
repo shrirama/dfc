@@ -10,7 +10,7 @@ import (
 )
 
 func TestInitRunStop(t *testing.T) {
-	Dctx1, pool1, err := Init()
+	ctx1, pool1, err := Init()
 	if err != nil {
 		t.Errorf(" 1A: Error in DFC initialization ")
 		return

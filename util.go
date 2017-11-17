@@ -6,16 +6,17 @@ package dfc
 
 import (
 	"net"
-	"os"
+
+	"github.com/golang/glog"
 )
 
 // Returns first IP address of host.
-func getipaddr() string {
+func getipaddr() (string, error) {
 	var ipaddr string
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
-		os.Stderr.WriteString("Oops: " + err.Error() + "\n")
-		os.Exit(1)
+		glog.Errorf("Failed to read Net interface %v \n", err)
+		return ipaddr, err
 	}
 	// Returns first IP address
 	for _, a := range addrs {
@@ -27,6 +28,6 @@ func getipaddr() string {
 			}
 		}
 	}
-	return ipaddr
+	return ipaddr, err
 
 }

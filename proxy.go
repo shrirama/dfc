@@ -6,6 +6,7 @@ package dfc
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"html"
 	"io/ioutil"
@@ -78,12 +79,22 @@ func proxyhdlr(w http.ResponseWriter, r *http.Request) {
 		} else {
 
 			sid := doHashfindServer(html.EscapeString(r.URL.Path))
-			proxyclientRequest(sid, w, r)
+			err := proxyclientRequest(sid, w, r)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			} else {
+				// TODO HTTP redirect
+				fmt.Fprintf(w, "DFC-Daemon %q", html.EscapeString(r.URL.Path))
+			}
 		}
 
 	case "POST":
 		//Proxy server may will get POST for  storage server registration only
-		r.ParseForm()
+		err := r.ParseForm()
+		if err != nil {
+			glog.Errorf("Failed to Parse Post Value err = %v \n", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 		glog.Infof("request content %s  \n", r.Form)
 		var sinfo serverinfo
 		// Parse POST values
@@ -114,9 +125,10 @@ func proxyhdlr(w http.ResponseWriter, r *http.Request) {
 	case "PUT":
 	case "DELETE":
 	default:
-		glog.Errorf("Invalid Proxy Request from %s: %s %q \n", r.RemoteAddr, r.Method, r.URL)
-		http.Error(w, http.StatusText(http.StatusMethodNotAllowed),
-			http.StatusMethodNotAllowed)
+		errstr := fmt.Sprintf("Invalid Proxy Request from %s: %s %q \n", r.RemoteAddr, r.Method, r.URL)
+		glog.Error(errstr)
+		err := errors.New(errstr)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 
 	}
 
@@ -124,23 +136,26 @@ func proxyhdlr(w http.ResponseWriter, r *http.Request) {
 
 // It registers DFC's storage Server Instance with DFC's Proxy Client.
 // A storage server uses ID, IP address and Port for registration with Proxy Client.
-func registerwithproxy() error {
+func registerwithproxy() (rerr error) {
 	httpClient = createHTTPClient()
 	// Proxy well known address
 	proxyURL := ctx.configparam.pcparam.pclienturl
 	resource := "/"
 	data := url.Values{}
-	ipaddr := getipaddr()
+	ipaddr, err := getipaddr()
+	if err != nil {
+		return err
+	}
 
 	// Posting IP address, Port ID and ID as part of storage server registration.
 	data.Set(IP, ipaddr)
 	data.Add(PORT, string(ctx.configparam.lsparam.port))
-	data.Add(ID, string(ctx.configparam.ID))
+	data.Add(ID, ctx.configparam.ID)
 
 	u, _ := url.ParseRequestURI(string(proxyURL))
 	u.Path = resource
 	urlStr := u.String()
-	glog.Infof("Proxy URL : %s \n ", string(urlStr))
+	glog.Infof("Proxy URL : %s \n ", urlStr)
 
 	req, err := http.NewRequest("POST", urlStr, bytes.NewBufferString(data.Encode()))
 	if err != nil {
@@ -158,22 +173,28 @@ func registerwithproxy() error {
 		return err
 	}
 	// Close the connection to reuse it
-	defer response.Body.Close()
+	defer func() {
+		err = response.Body.Close()
+		if err != nil {
+			rerr = err
+		}
+	}()
 
 	// Let's check if the work actually is done
 	// Did we get 200 OK responsea?
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		glog.Errorf("Couldn't parse response body. %+v \n", err)
+		return err
 	}
 
 	glog.Infof("Response Body: %s \n", string(body))
-	return err
+	return nil
 }
 
 // ProxyclientRequest submit a new http request to one of DFC storage server.
 // Storage server ID is provided as one of argument to this call.
-func proxyclientRequest(sid string, w http.ResponseWriter, r *http.Request) {
+func proxyclientRequest(sid string, w http.ResponseWriter, r *http.Request) (rerr error) {
 	glog.Infof(" Request path = %s Sid = %s Port = %s \n",
 		html.EscapeString(r.URL.Path), sid, ctx.smap[sid].port)
 
@@ -182,9 +203,15 @@ func proxyclientRequest(sid string, w http.ResponseWriter, r *http.Request) {
 	resp, err := http.Get(url)
 	if err != nil {
 		glog.Errorf("Failed to get url = %s err = %q", url, err)
+		return err
 	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	defer func() {
+		err := resp.Body.Close()
+		if err != nil {
+			rerr = err
+		}
+	}()
+	body, _ := ioutil.ReadAll(resp.Body)
 	glog.Infof(" URL = %s Response  = %s \n", url, body)
-	fmt.Fprintf(w, "DFC-Daemon %q", html.EscapeString(r.URL.Path))
+	return nil
 }

@@ -21,23 +21,13 @@ import (
 
 // Dctx : DFC context is context for each DFC instance(Proxy or Storage Servers).
 type Dctx struct {
-	// WaitGroup for completing Http Requests.
-	httprqwg sync.WaitGroup
-
-	// Channel for listening cancellation request.
-	cancel chan struct{}
-
-	// ConfigParameter for DFC instance.
-	configparam ConfigParam
-
-	// DFC can run as Proxy or Storage Server Instance..
-	// True will imply running as Proxy and
-	// False will imply running as Storage Server.
-	proxy bool
 
 	// Map of Registered storage servers with Proxy Instance. It will be NIL for Storage
 	// Server Instance.
 	smap map[string]serverinfo
+
+	// ConfigParameter for DFC instance.
+	configparam ConfigParam
 
 	// Statistics or Histogram for DFC. It's  currently designed as in Memory Non Persistent
 	// data structure to maintain histogram/statistic with respect to running DFC instance.
@@ -46,9 +36,20 @@ type Dctx struct {
 	// Channel for  cancellation/termination signal.
 	sig chan os.Signal
 
+	// Channel for listening cancellation request.
+	cancel chan struct{}
+
 	// stopinprogress is set during main daemon thread stopping. DFC instance cannot
 	// accept new http requests once stopinprogress is set.
-	stopinprogess bool
+	stopinprogress bool
+
+	// DFC can run as Proxy or Storage Server Instance..
+	// True will imply running as Proxy and
+	// False will imply running as Storage Server.
+	proxy bool
+
+	// WaitGroup for completing Http Requests.
+	httprqwg sync.WaitGroup
 }
 
 // Server Registration info
@@ -128,7 +129,11 @@ func Init() (*Dctx, *group.Group, error) {
 func Run(pool *group.Group) {
 
 	glog.Infof("Run \n")
-	pool.Run()
+	err := pool.Run()
+	if err != nil {
+		// Will exit process and dump Stack.
+		glog.Fatalf("Failed to Run %v \n", err)
+	}
 }
 
 // Stop DFC instance. similar to user pressing CTL-C or interrupt
