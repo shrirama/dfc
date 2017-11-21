@@ -5,6 +5,7 @@ TMPDIR="/tmp/nvidia"
 CACHEDIR="cache"
 LOGDIR="log"
 PROXYURL="http://localhost:8080"
+PROXYTOSUBMITRQ=true
 
 # Starting Portnumber
 PORT=8079
@@ -43,6 +44,7 @@ do
 				"port":	"${PORT}",
 				"id": "${ID}",
 				"proxyclienturl": "${PROXYURL}",
+				"proxytosubmitrq": ${PROXYTOSUBMITRQ},
 				"cachedir":	"${DIRPATH}${CURINSTANCE}${CACHEDIR}",
 				"logdir":	"${DIRPATH}${CURINSTANCE}${LOGDIR}",
 				"cloudprovider":	"${CLDPROVIDER}",
@@ -62,6 +64,8 @@ do
 		if [ $c -eq 0 ]
 		then
 				go run dfcstart.go -configfile=$CONFFILE -type=proxy &
+#Need to wait for Proxy Client to be ready to accept new connections
+				sleep 10
 		else
 				go run dfcstart.go -configfile=$CONFFILE -type=server &
 		fi
