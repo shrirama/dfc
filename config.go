@@ -27,6 +27,7 @@ type Config struct {
 	Port             string `json:"port"`
 	ID               string `json:"id"`
 	ProxyClientURL   string `json:"proxyclienturl"`
+	ProxyToSubmitRQ  bool   `json:"proxytosubmitrq"`
 	Cachedir         string `json:"cachedir"`
 	Logdir           string `json:"logdir"`
 	CloudProvider    string `json:"cloudprovider"`
@@ -80,6 +81,12 @@ type Proxyclientparam struct {
 	// register with Proxy Client. It is specified as
 	// http://[<ipaddr>][localhost]:<portnum>
 	pclienturl dfcstring
+
+	// Proxytosubmtrq = True specifies Proxy client will prepare and submit
+	// http request to storage server.
+	// False value will redirect original request to Storage Server for processing.
+	// Default value is false.
+	proxytosubmitrq bool
 }
 
 // ConfigParam specifies configurable parameters for DFC instance.
@@ -115,7 +122,7 @@ type ConfigParam struct {
 
 // Read JSON Config file and populate DFC Instance's config parameters.
 // We currently support only one configuration per JSON file.
-func initconfigparam(configfile string) error {
+func initconfigparam(configfile string, loglevel string) error {
 	conf, err := getConfig(configfile)
 	if len(conf) != 1 {
 		errstr := fmt.Sprintf("Configuration data length is %d, Needed 1 \n", len(conf))
@@ -129,10 +136,16 @@ func initconfigparam(configfile string) error {
 			// Not fatal as it will use default logfile under /tmp/
 			glog.Errorf("Failed to set glog file name = %v \n", err)
 		}
+		//err = flag.Lookup("minloglevel").Value.Set(string(testlevel))
+		//if err != nil {
+		// Not fatal as it will use default logging level
+		//glog.Errorf("Failed to set minloglevel = %v \n", err)
+		//}
 
 		ctx.configparam.logdir = config.Logdir
 		ctx.configparam.cachedir = config.Cachedir
 		ctx.configparam.pcparam.pclienturl = dfcstring(config.ProxyClientURL)
+		ctx.configparam.pcparam.proxytosubmitrq = config.ProxyToSubmitRQ
 		ctx.configparam.lsparam.proto = dfcstring(config.Proto)
 		ctx.configparam.lsparam.port = dfcstring(config.Port)
 		ctx.configparam.ID = config.ID

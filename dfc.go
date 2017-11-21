@@ -31,7 +31,7 @@ type Dctx struct {
 
 	// Statistics or Histogram for DFC. It's  currently designed as in Memory Non Persistent
 	// data structure to maintain histogram/statistic with respect to running DFC instance.
-	stat Stats
+	stat stats
 
 	// Channel for  cancellation/termination signal.
 	sig chan os.Signal
@@ -74,12 +74,21 @@ var ctx *Dctx
 func init() {
 	var stype string
 	var conffile string
+	var loglevel string
 
 	flag.StringVar(&stype, "type", "", "a string var")
 	flag.StringVar(&conffile, "configfile", "", "a string var")
 
+	// Default Loglevel is 0 or at INFO level
+	// Loglevel 1 is WARNING
+	// Loglevel 2 is ERROR
+	flag.StringVar(&loglevel, "loglevel", "0", "a string var")
+
+	loglevel = "1"
 	flag.Parse()
 
+	glog.Infof("SHRI MinLoglevel %s ", loglevel)
+	glog.Flush()
 	if conffile == "" || stype == "" {
 		fmt.Fprintf(os.Stderr, "Usage: go run dfc type=[proxy][server] configfile=file.json \n")
 		os.Exit(2)
@@ -89,11 +98,10 @@ func init() {
 		fmt.Fprintf(os.Stderr, "Usage: go run dfc type=[proxy][server] configfile=name.json \n")
 		os.Exit(2)
 	}
-
 	ctx = new(Dctx)
 	ctx.sig = make(chan os.Signal, 1)
 	ctx.cancel = make(chan struct{})
-	err := initconfigparam(conffile)
+	err := initconfigparam(conffile, loglevel)
 	if err != nil {
 		// Will exit process and  dump the stack
 		glog.Fatalf("Failed to do initialization from config file = %s err = %v \n",
@@ -105,7 +113,6 @@ func init() {
 	} else {
 		ctx.proxy = false
 	}
-
 }
 
 // Init function initialize DFC Instance's Process Group.
@@ -123,12 +130,10 @@ func Init() (*Dctx, *group.Group, error) {
 	// Signal handler runnning as third worker
 	pool.Add(sighandler, sigexit)
 	return ctx, pool, err
-
 }
 
 // Run each process of DFC's instance pool.
 func Run(pool *group.Group) {
-
 	glog.Infof("Run \n")
 	err := pool.Run()
 	if err != nil {
@@ -146,7 +151,6 @@ func Stop(ctx *Dctx) {
 // Daemon thread running in for loop until receives cancel signal.
 func dstart() error {
 	// This worker keep running until cancel is called
-
 	for {
 		// Using select to have extendability for other cases
 		select {

@@ -5,8 +5,8 @@
 package dfc
 
 import (
-	"fmt"
 	"html"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -94,12 +94,27 @@ func servhdlr(w http.ResponseWriter, r *http.Request) {
 					http.StatusInternalServerError)
 			} else {
 				glog.Infof("httphdlr Bucket = %s Key =%s download completed \n", bktname, keyname)
-				fmt.Fprintf(w, "DFC-Daemon %q", html.EscapeString(r.URL.Path))
+				//fmt.Fprintf(w, "DFC-Daemon %q", html.EscapeString(r.URL.Path))
 			}
 		} else {
 			glog.Infof("Bucket = %s Key =%s exist \n", bktname, keyname)
-			fmt.Fprintf(w, "DFC-Daemon %q", html.EscapeString(r.URL.Path))
+			//fmt.Fprintf(w, "DFC-Daemon %q", html.EscapeString(r.URL.Path))
 		}
+		file, err := os.Open(fname)
+		if err != nil {
+			glog.Errorf("Failed to open file %s err %v \n", fname, err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		} else {
+			defer file.Close()
+			_, err := io.Copy(w, file)
+			if err != nil {
+				glog.Errorf("Failed to Copy data to http response for fname %s err %v \n", fname, err)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			} else {
+				glog.Infof("Succefully copied file = %s to http response \n", fname)
+			}
+		}
+
 	case "POST":
 	case "PUT":
 	case "DELETE":

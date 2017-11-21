@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"html"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -79,12 +80,19 @@ func proxyhdlr(w http.ResponseWriter, r *http.Request) {
 		} else {
 
 			sid := doHashfindServer(html.EscapeString(r.URL.Path))
-			err := proxyclientRequest(sid, w, r)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+			if ctx.configparam.pcparam.proxytosubmitrq {
+				err := proxyclientRequest(sid, w, r)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+				} else {
+					// TODO HTTP redirect
+					fmt.Fprintf(w, "DFC-Daemon %q", html.EscapeString(r.URL.Path))
+				}
 			} else {
-				// TODO HTTP redirect
-				fmt.Fprintf(w, "DFC-Daemon %q", html.EscapeString(r.URL.Path))
+				glog.Infof("Redirecting request %q", html.EscapeString(r.URL.Path))
+				storageurlurl := "http://" + ctx.smap[sid].ip + ":" + ctx.smap[sid].port + html.EscapeString(r.URL.Path)
+				http.Redirect(w, r, storageurlurl, http.StatusMovedPermanently)
+
 			}
 		}
 
@@ -211,7 +219,15 @@ func proxyclientRequest(sid string, w http.ResponseWriter, r *http.Request) (rer
 			rerr = err
 		}
 	}()
-	body, _ := ioutil.ReadAll(resp.Body)
-	glog.Infof(" URL = %s Response  = %s \n", url, body)
+
+	_, err = io.Copy(w, resp.Body)
+	if err != nil {
+		glog.Errorf("Failed to Copy data to http response for URL rq %s err %v \n",
+			html.EscapeString(r.URL.Path), err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	} else {
+		glog.Infof("Succefully copied data from Body to Response for rq %s \n",
+			html.EscapeString(r.URL.Path))
+	}
 	return nil
 }
