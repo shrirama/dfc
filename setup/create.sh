@@ -5,7 +5,7 @@ TMPDIR="/tmp/nvidia"
 CACHEDIR="cache"
 LOGDIR="log"
 PROXYURL="http://localhost:8080"
-PROXYTOSUBMITRQ=true
+PROXYTOSUBMITRQ=false
 
 # Starting Portnumber
 PORT=8079
@@ -17,6 +17,7 @@ PROTO="tcp"
 CLDPROVIDER="amazon"
 DIRPATH="/tmp/nvidia/"
 CACHEDIR="/cache"
+LOGLEVEL="3"
 LOGDIR="/log"
 CONFPATH="/etc/dfconf"
 INSTANCEPREFIX="dfc"
@@ -43,6 +44,7 @@ do
 				"proto": "${PROTO}",
 				"port":	"${PORT}",
 				"id": "${ID}",
+				"loglevel": "${LOGLEVEL}",
 				"proxyclienturl": "${PROXYURL}",
 				"proxytosubmitrq": ${PROXYTOSUBMITRQ},
 				"cachedir":	"${DIRPATH}${CURINSTANCE}${CACHEDIR}",

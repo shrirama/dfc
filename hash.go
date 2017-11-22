@@ -15,7 +15,9 @@ func doHashfindServer(url string) string {
 	var sid string
 	var max uint32
 	for _, smap := range ctx.smap {
-		glog.Infof("Id = %s Port = %s \n", smap.id, smap.port)
+		if glog.V(3) {
+			glog.Infof("Id = %s Port = %s \n", smap.id, smap.port)
+		}
 		cs := crc32.Checksum([]byte(url+smap.id+smap.port), crc32.IEEETable)
 		if cs > max {
 			max = cs

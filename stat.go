@@ -22,7 +22,9 @@ type stats struct {
 // Stat function will provide in-memory statistics for local DFC instance.
 // TODO Yet to be implemented.
 func Stat() stats {
-	glog.Info("Stat function \n")
+	if glog.V(4) {
+		glog.Info("Stat function \n")
+	}
 	// TODO
 	return ctx.stat
 }

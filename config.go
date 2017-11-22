@@ -30,6 +30,7 @@ type Config struct {
 	ProxyToSubmitRQ  bool   `json:"proxytosubmitrq"`
 	Cachedir         string `json:"cachedir"`
 	Logdir           string `json:"logdir"`
+	Loglevel         string `json:"loglevel"`
 	CloudProvider    string `json:"cloudprovider"`
 	Maxconcurrdownld uint32 `json:"maxconcurrdownld"`
 	Maxconcurrupld   uint32 `json:"maxconcurrupld"`
@@ -103,6 +104,12 @@ type ConfigParam struct {
 	// Default ID will be MAC ID
 	ID string
 
+	// Logging parameter : It control logging for DFC instance(s).
+	// User supplied parameter through commandline (flags) is given highest precedence.
+	// Next precedence will be from Config file and It's optional to have in config file.
+	// Default value of 4 will be used for logging everything in DFC instance.
+	loglevel string
+
 	// Pcparam refers to ProxyClientURL.DFC's storage instance uses this URL to register
 	// with DFC's ProxyClient. DFC can support multiple ProxyClientURL across
 	// DFC Cluster to do load balancing but we are currently supporting only one.
@@ -136,14 +143,10 @@ func initconfigparam(configfile string, loglevel string) error {
 			// Not fatal as it will use default logfile under /tmp/
 			glog.Errorf("Failed to set glog file name = %v \n", err)
 		}
-		//err = flag.Lookup("minloglevel").Value.Set(string(testlevel))
-		//if err != nil {
-		// Not fatal as it will use default logging level
-		//glog.Errorf("Failed to set minloglevel = %v \n", err)
-		//}
 
 		ctx.configparam.logdir = config.Logdir
 		ctx.configparam.cachedir = config.Cachedir
+		ctx.configparam.loglevel = config.Loglevel
 		ctx.configparam.pcparam.pclienturl = dfcstring(config.ProxyClientURL)
 		ctx.configparam.pcparam.proxytosubmitrq = config.ProxyToSubmitRQ
 		ctx.configparam.lsparam.proto = dfcstring(config.Proto)
@@ -153,8 +156,10 @@ func initconfigparam(configfile string, loglevel string) error {
 		ctx.configparam.s3config.maxconupload = config.Maxconcurrupld
 		ctx.configparam.s3config.maxcondownload = config.Maxconcurrdownld
 		ctx.configparam.s3config.maxpartsize = config.Maxpartsize
-		glog.Infof("Logdir = %s Cachedir = %s Proto =%s Port = %s ID = %s \n", config.Logdir,
-			config.Cachedir, config.Proto, config.Port, config.ID)
+		if glog.V(3) {
+			glog.Infof("Logdir = %s Cachedir = %s Proto =%s Port = %s ID = %s loglevel = %s \n",
+				config.Logdir, config.Cachedir, config.Proto, config.Port, config.ID, config.Loglevel)
+		}
 		err = createdir(config.Logdir)
 		if err != nil {
 			glog.Errorf("Failed to create Logdir = %s err = %s \n", config.Logdir, err)
@@ -165,6 +170,18 @@ func initconfigparam(configfile string, loglevel string) error {
 			glog.Errorf("Failed to create Cachedir = %s err = %s \n", config.Cachedir, err)
 			return err
 		}
+		// Argument specified at commandline or through flags has highest precedence.
+		if loglevel != "" {
+			err = flag.Lookup("v").Value.Set(loglevel)
+			glog.Infof("Set the User Specified loglevel = %s \n", loglevel)
+		} else {
+			err = flag.Lookup("v").Value.Set(ctx.configparam.loglevel)
+		}
+		if err != nil {
+			//  Not fatal as it will use default logging level
+			glog.Errorf("Failed to set loglevel = %v \n", err)
+		}
+
 	}
 	return err
 }

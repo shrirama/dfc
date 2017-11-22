@@ -64,7 +64,9 @@ func createHTTPClient() *http.Client {
 // It supports GET and POST method only and return 405 error non supported Methods.
 func proxyhdlr(w http.ResponseWriter, r *http.Request) {
 
-	glog.Infof("Proxy Request from %s: %s %q \n", r.RemoteAddr, r.Method, r.URL)
+	if glog.V(3) {
+		glog.Infof("Proxy Request from %s: %s %q \n", r.RemoteAddr, r.Method, r.URL)
+	}
 	switch r.Method {
 	case "GET":
 		// Serve the resource.
@@ -89,7 +91,9 @@ func proxyhdlr(w http.ResponseWriter, r *http.Request) {
 					fmt.Fprintf(w, "DFC-Daemon %q", html.EscapeString(r.URL.Path))
 				}
 			} else {
-				glog.Infof("Redirecting request %q", html.EscapeString(r.URL.Path))
+				if glog.V(3) {
+					glog.Infof("Redirecting request %q", html.EscapeString(r.URL.Path))
+				}
 				storageurlurl := "http://" + ctx.smap[sid].ip + ":" + ctx.smap[sid].port + html.EscapeString(r.URL.Path)
 				http.Redirect(w, r, storageurlurl, http.StatusMovedPermanently)
 
@@ -103,21 +107,28 @@ func proxyhdlr(w http.ResponseWriter, r *http.Request) {
 			glog.Errorf("Failed to Parse Post Value err = %v \n", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
-		glog.Infof("request content %s  \n", r.Form)
+		if glog.V(2) {
+			glog.Infof("request content %s  \n", r.Form)
+		}
 		var sinfo serverinfo
 		// Parse POST values
 		for str, val := range r.Form {
 			if str == IP {
-				//glog.Infof(" str is = %s val = %s \n", str, val)
-				glog.Infof("val : %s \n", strings.Join(val, ""))
+				if glog.V(3) {
+					glog.Infof("val : %s \n", strings.Join(val, ""))
+				}
 				sinfo.ip = strings.Join(val, "")
 			}
 			if str == PORT {
-				glog.Infof("val : %s \n", strings.Join(val, ""))
+				if glog.V(3) {
+					glog.Infof("val : %s \n", strings.Join(val, ""))
+				}
 				sinfo.port = strings.Join(val, "")
 			}
 			if str == ID {
-				glog.Infof("val : %s \n", strings.Join(val, ""))
+				if glog.V(3) {
+					glog.Infof("val : %s \n", strings.Join(val, ""))
+				}
 				sinfo.id = strings.Join(val, "")
 			}
 
@@ -126,8 +137,10 @@ func proxyhdlr(w http.ResponseWriter, r *http.Request) {
 		// Insert into Map based on ID and fail if duplicates.
 		// TODO Fail if there already client registered with same ID
 		ctx.smap[sinfo.id] = sinfo
-		glog.Infof(" IP = %s Port = %s  Id = %s Curlen of map = %d \n",
-			sinfo.ip, sinfo.port, sinfo.id, len(ctx.smap))
+		if glog.V(3) {
+			glog.Infof(" IP = %s Port = %s  Id = %s Curlen of map = %d \n",
+				sinfo.ip, sinfo.port, sinfo.id, len(ctx.smap))
+		}
 		fmt.Fprintf(w, "DFC-Daemon %q", html.EscapeString(r.URL.Path))
 
 	case "PUT":
@@ -163,7 +176,9 @@ func registerwithproxy() (rerr error) {
 	u, _ := url.ParseRequestURI(string(proxyURL))
 	u.Path = resource
 	urlStr := u.String()
-	glog.Infof("Proxy URL : %s \n ", urlStr)
+	if glog.V(3) {
+		glog.Infof("Proxy URL : %s \n ", urlStr)
+	}
 
 	req, err := http.NewRequest("POST", urlStr, bytes.NewBufferString(data.Encode()))
 	if err != nil {
@@ -196,18 +211,24 @@ func registerwithproxy() (rerr error) {
 		return err
 	}
 
-	glog.Infof("Response Body: %s \n", string(body))
+	if glog.V(3) {
+		glog.Infof("Response Body: %s \n", string(body))
+	}
 	return nil
 }
 
 // ProxyclientRequest submit a new http request to one of DFC storage server.
 // Storage server ID is provided as one of argument to this call.
 func proxyclientRequest(sid string, w http.ResponseWriter, r *http.Request) (rerr error) {
-	glog.Infof(" Request path = %s Sid = %s Port = %s \n",
-		html.EscapeString(r.URL.Path), sid, ctx.smap[sid].port)
+	if glog.V(3) {
+		glog.Infof(" Request path = %s Sid = %s Port = %s \n",
+			html.EscapeString(r.URL.Path), sid, ctx.smap[sid].port)
+	}
 
 	url := "http://" + ctx.smap[sid].ip + ":" + ctx.smap[sid].port + html.EscapeString(r.URL.Path)
-	glog.Infof(" URL = %s \n", url)
+	if glog.V(3) {
+		glog.Infof(" URL = %s \n", url)
+	}
 	resp, err := http.Get(url)
 	if err != nil {
 		glog.Errorf("Failed to get url = %s err = %q", url, err)
@@ -226,8 +247,10 @@ func proxyclientRequest(sid string, w http.ResponseWriter, r *http.Request) (rer
 			html.EscapeString(r.URL.Path), err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	} else {
-		glog.Infof("Succefully copied data from Body to Response for rq %s \n",
-			html.EscapeString(r.URL.Path))
+		if glog.V(3) {
+			glog.Infof("Succefully copied data from Body to Response for rq %s \n",
+				html.EscapeString(r.URL.Path))
+		}
 	}
 	return nil
 }

@@ -106,6 +106,12 @@ func servhdlr(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {
 			defer file.Close()
+
+			// TODO Currently entire file is being downloaded before sending streaming
+			// response to  http response. It's possible to do chunking, concurrency of
+			// object without using downloader to stream chunks as soon as it lands on
+			// local storage to http response(without waiting for entire file to download)
+			// It would require multipart and concurrency implementation in DFC itself.
 			_, err := io.Copy(w, file)
 			if err != nil {
 				glog.Errorf("Failed to Copy data to http response for fname %s err %v \n", fname, err)

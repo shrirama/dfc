@@ -79,16 +79,16 @@ func init() {
 	flag.StringVar(&stype, "type", "", "a string var")
 	flag.StringVar(&conffile, "configfile", "", "a string var")
 
-	// Default Loglevel is 0 or at INFO level
-	// Loglevel 1 is WARNING
-	// Loglevel 2 is ERROR
-	flag.StringVar(&loglevel, "loglevel", "0", "a string var")
+	// Loglevel 1 : Must for debugging.
+	// Loglevel 2 : Important logs for control flow.
+	// Loglevel 3 : Logging arguments, headers and data.
+	// Loglevel 4  : Logging entry exit functions.
+	// WARN and Error Messages will be always logged regardless of levels.
 
-	loglevel = "1"
+	// Default value can be overridden by config file or through CommandLine parameters.
+	flag.StringVar(&loglevel, "loglevel", "", "a string var")
+
 	flag.Parse()
-
-	glog.Infof("SHRI MinLoglevel %s ", loglevel)
-	glog.Flush()
 	if conffile == "" || stype == "" {
 		fmt.Fprintf(os.Stderr, "Usage: go run dfc type=[proxy][server] configfile=file.json \n")
 		os.Exit(2)
@@ -134,7 +134,9 @@ func Init() (*Dctx, *group.Group, error) {
 
 // Run each process of DFC's instance pool.
 func Run(pool *group.Group) {
-	glog.Infof("Run \n")
+	if glog.V(2) {
+		glog.Infof("Run \n")
+	}
 	err := pool.Run()
 	if err != nil {
 		// Will exit process and dump Stack.
@@ -144,7 +146,9 @@ func Run(pool *group.Group) {
 
 // Stop DFC instance. similar to user pressing CTL-C or interrupt
 func Stop(ctx *Dctx) {
-	glog.Infof(" Sending stop signal to DFC Main worker \n")
+	if glog.V(2) {
+		glog.Infof(" Sending stop signal to DFC Main worker \n")
+	}
 	close(ctx.cancel)
 }
 
@@ -155,7 +159,9 @@ func dstart() error {
 		// Using select to have extendability for other cases
 		select {
 		case <-ctx.cancel:
-			glog.Info("The Mainworker was canceled\n")
+			if glog.V(2) {
+				glog.Info("The Mainworker was canceled\n")
+			}
 			return nil
 		}
 	}
@@ -163,7 +169,9 @@ func dstart() error {
 
 // Daemon exit function.
 func dstop(err error) {
-	glog.Infof("The Mainworker was interrupted with: %v\n", err)
+	if glog.V(2) {
+		glog.Infof("The Mainworker was interrupted with: %v\n", err)
+	}
 
 	// Not protecting it through mutex or atomic update for performance reason.
 	// It will not cause any correctness issue.
