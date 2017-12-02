@@ -6,6 +6,7 @@ package dfc
 
 import (
 	"hash/crc32"
+	"math"
 
 	"github.com/golang/glog"
 )
@@ -25,4 +26,21 @@ func doHashfindServer(url string) string {
 		}
 	}
 	return sid
+}
+
+// It will do hash on MountPath + bucket+ keypath and will pick mountpath with Min Hash value.
+func doHashfindMountPath(key string) string {
+	var mpath string
+	var min uint32 = math.MaxUint32
+	for _, minfo := range ctx.smap[ctx.configparam.ID].mntpath {
+		if glog.V(3) {
+			glog.Infof("mntpath = %s keypath = %s \n", minfo.Path, key)
+		}
+		cs := crc32.Checksum([]byte(key+minfo.Path), crc32.IEEETable)
+		if cs < min {
+			min = cs
+			mpath = minfo.Path
+		}
+	}
+	return mpath
 }

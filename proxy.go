@@ -61,7 +61,7 @@ func createHTTPClient() *http.Client {
 }
 
 // Proxyhdlr function serves request coming to listening port of DFC's Proxy Client.
-// It supports GET and POST method only and return 405 error non supported Methods.
+// It supports GET and POST method only and return 405 error for non supported Methods.
 func proxyhdlr(w http.ResponseWriter, r *http.Request) {
 
 	if glog.V(3) {
@@ -101,7 +101,7 @@ func proxyhdlr(w http.ResponseWriter, r *http.Request) {
 		}
 
 	case "POST":
-		//Proxy server may will get POST for  storage server registration only
+		//Proxy server will get POST for  Storage server registration only
 		err := r.ParseForm()
 		if err != nil {
 			glog.Errorf("Failed to Parse Post Value err = %v \n", err)
@@ -204,7 +204,7 @@ func registerwithproxy() (rerr error) {
 	}()
 
 	// Let's check if the work actually is done
-	// Did we get 200 OK responsea?
+	// Did we get 200 OK response?
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		glog.Errorf("Couldn't parse response body. %+v \n", err)

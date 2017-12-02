@@ -5,6 +5,8 @@
 package dfc
 
 import (
+	"errors"
+	"fmt"
 	"html"
 	"io"
 	"net/http"
@@ -21,13 +23,30 @@ import (
 
 // Start instance of webserver listening on specific port.
 func websrvstart() error {
+	var err error
 	// For server it needs to register with Proxy client before it can start
 	if !ctx.proxy {
-		err := registerwithproxy()
+		sinfo := ctx.smap[ctx.configparam.ID]
+		sinfo.mntpath, err = parseProcMounts(procMountsPath)
 		if err != nil {
 			glog.Errorf("Hit Error %q", err)
 			return err
 		}
+		if len(ctx.smap[ctx.configparam.ID].mntpath) == 0 {
+			errstr := fmt.Sprintf("Mounted storage count = %d Needed atleast 1 ",
+				len(ctx.smap[ctx.configparam.ID].mntpath))
+			glog.Errorf("%s \n", errstr)
+			err = errors.New(errstr)
+			return err
+
+		}
+		err = registerwithproxy()
+		if err != nil {
+			glog.Errorf("Hit Error %q", err)
+			return err
+		}
+		// TODO revisit
+
 	}
 	wbsvport := http.NewServeMux()
 	wbsvport.HandleFunc("/", httphdlr)
@@ -58,7 +77,7 @@ func httphdlr(w http.ResponseWriter, r *http.Request) {
 }
 
 // Servhdlr function serves request coming to listening port of DFC's Storage Server.
-// It supports GET method only and return 405 error non supported Methods.
+// It supports GET method only and return 405 error for non supported Methods.
 // This function checks wheather key exists locally or not. If key does not exist locally
 // it prepares session and download objects from S3 to path on local host.
 func servhdlr(w http.ResponseWriter, r *http.Request) {
@@ -71,7 +90,9 @@ func servhdlr(w http.ResponseWriter, r *http.Request) {
 		bktname := s[1]
 		keyname := s[2]
 		glog.Infof("Bucket name = %s Key Name = %s \n", bktname, keyname)
-		fname := ctx.configparam.cachedir + "/" + bktname + "/" + keyname
+		mpath := doHashfindMountPath(bktname + keyname)
+
+		fname := ctx.configparam.cachedir + mpath + bktname + "/" + keyname
 		glog.Infof("complete file name = %s \n", fname)
 
 		// check wheather filename exists in local directory or not

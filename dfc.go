@@ -64,7 +64,12 @@ type serverinfo struct {
 	// ID uniquely identifies a Proxy Client or Storage Server in DFC Cluster. It needs to
 	// be unique . We currently use MAC id.
 	id string
+
+	// List of Usable mountpoints on storage server
+	mntpath []MountPoint
+
 	// TODO Need to expand
+
 }
 
 // Global context
