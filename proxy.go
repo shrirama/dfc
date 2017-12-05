@@ -82,7 +82,7 @@ func proxyhdlr(w http.ResponseWriter, r *http.Request) {
 		} else {
 
 			sid := doHashfindServer(html.EscapeString(r.URL.Path))
-			if ctx.configparam.pcparam.proxytosubmitrq {
+			if !ctx.config.Proxy.Passthru {
 				err := proxyclientRequest(sid, w, r)
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -90,13 +90,15 @@ func proxyhdlr(w http.ResponseWriter, r *http.Request) {
 					// TODO HTTP redirect
 					fmt.Fprintf(w, "DFC-Daemon %q", html.EscapeString(r.URL.Path))
 				}
-			} else {
+			} else { // passthrough
 				if glog.V(3) {
 					glog.Infof("Redirecting request %q", html.EscapeString(r.URL.Path))
 				}
-				storageurlurl := "http://" + ctx.smap[sid].ip + ":" + ctx.smap[sid].port + html.EscapeString(r.URL.Path)
+				storageurlurl := "http://" +
+					ctx.smap[sid].ip + ":" +
+					ctx.smap[sid].port +
+					html.EscapeString(r.URL.Path)
 				http.Redirect(w, r, storageurlurl, http.StatusMovedPermanently)
-
 			}
 		}
 
@@ -159,8 +161,8 @@ func proxyhdlr(w http.ResponseWriter, r *http.Request) {
 // A storage server uses ID, IP address and Port for registration with Proxy Client.
 func registerwithproxy() (rerr error) {
 	httpClient = createHTTPClient()
-	// Proxy well known address
-	proxyURL := ctx.configparam.pcparam.pclienturl
+	//  well-known proxy address
+	proxyURL := ctx.config.Proxy.URL
 	resource := "/"
 	data := url.Values{}
 	ipaddr, err := getipaddr()
@@ -170,8 +172,8 @@ func registerwithproxy() (rerr error) {
 
 	// Posting IP address, Port ID and ID as part of storage server registration.
 	data.Set(IP, ipaddr)
-	data.Add(PORT, string(ctx.configparam.lsparam.port))
-	data.Add(ID, ctx.configparam.ID)
+	data.Add(PORT, string(ctx.config.Listen.Port))
+	data.Add(ID, ctx.config.ID)
 
 	u, _ := url.ParseRequestURI(string(proxyURL))
 	u.Path = resource

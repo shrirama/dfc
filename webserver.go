@@ -24,7 +24,7 @@ func websrvstart() error {
 	var err error
 	// For server it needs to register with Proxy client before it can start
 	if !ctx.proxy {
-		sinfo := ctx.smap[ctx.configparam.ID]
+		sinfo := ctx.smap[ctx.config.ID]
 		sinfo.mntpath, err = parseProcMounts(procMountsPath)
 		if err != nil {
 			glog.Errorf("Hit Error %q", err)
@@ -41,7 +41,7 @@ func websrvstart() error {
 	}
 	wbsvport := http.NewServeMux()
 	wbsvport.HandleFunc("/", httphdlr)
-	portstring := ":" + ctx.configparam.lsparam.port
+	portstring := ":" + ctx.config.Listen.Port
 	ports := string(portstring)
 	return http.ListenAndServe(ports, wbsvport)
 
@@ -83,7 +83,7 @@ func servhdlr(w http.ResponseWriter, r *http.Request) {
 		glog.Infof("Bucket name = %s Key Name = %s \n", bktname, keyname)
 		// mpath := doHashfindMountPath(bktname + keyname)
 
-		fname := ctx.configparam.cachedir + "/" + bktname + "/" + keyname
+		fname := ctx.config.Cachedir + "/" + bktname + "/" + keyname
 		glog.Infof("complete file name = %s \n", fname)
 
 		// check wheather filename exists in local directory or not
@@ -155,7 +155,7 @@ func downloadobject(w http.ResponseWriter, downloader *s3manager.Downloader,
 	var err error
 	var bytes int64
 
-	pathname := ctx.configparam.cachedir + "/" + bucket + "/" + kname
+	pathname := ctx.config.Cachedir + "/" + bucket + "/" + kname
 	// strips the last part from filepath
 	dirname := filepath.Dir(pathname)
 	_, err = os.Stat(dirname)

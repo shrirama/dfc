@@ -5,7 +5,7 @@ TMPDIR="/tmp/nvidia"
 CACHEDIR="cache"
 LOGDIR="log"
 PROXYURL="http://localhost:8080"
-PROXYTOSUBMITRQ=false
+PASSTHRU=true
 
 # Starting Portnumber
 PORT=8079
@@ -34,27 +34,31 @@ END=$servcount
 
 for (( c=$START; c<$END; c++ ))
 do
-		ID=$(expr $ID + 1)
-		PORT=$(expr $PORT + 1)
-		CURINSTANCE=$INSTANCEPREFIX$c
-		CONFFILE=$CONFPATH$c.json
-		cat > $CONFFILE <<EOL
-		[
-			{
-				"proto": "${PROTO}",
-				"port":	"${PORT}",
-				"id": "${ID}",
-				"loglevel": "${LOGLEVEL}",
-				"proxyclienturl": "${PROXYURL}",
-				"proxytosubmitrq": ${PROXYTOSUBMITRQ},
-				"cachedir":	"${DIRPATH}${CURINSTANCE}${CACHEDIR}",
-				"logdir":	"${DIRPATH}${CURINSTANCE}${LOGDIR}",
-				"cloudprovider":	"${CLDPROVIDER}",
-				"maxconcurrdownld":	${MAXCONCURRENTDOWNLOAD},
-				"maxconcurrupld":	${MAXCONCURRENTUPLOAD},
-				"maxpartsize":	${MAXPARTSIZE}	
-			}
-		]
+	ID=$(expr $ID + 1)
+	PORT=$(expr $PORT + 1)
+	CURINSTANCE=$INSTANCEPREFIX$c
+	CONFFILE=$CONFPATH$c.json
+	cat > $CONFFILE <<EOL
+	{
+		"id": 				"${ID}",
+		"cachedir":			"${DIRPATH}${CURINSTANCE}${CACHEDIR}",
+		"logdir":			"${DIRPATH}${CURINSTANCE}${LOGDIR}",
+		"loglevel": 			"${LOGLEVEL}",
+		"cloudprovider":		"${CLDPROVIDER}",
+		"listen": {
+			"proto": 		"${PROTO}",
+			"port":			"${PORT}"
+		},
+		"proxy": {
+			"url": 			"${PROXYURL}",
+			"passthru": 		${PASSTHRU}
+		},
+		"s3": {
+			"maxconcurrdownld":	${MAXCONCURRENTDOWNLOAD},
+			"maxconcurrupld":	${MAXCONCURRENTUPLOAD},
+			"maxpartsize":		${MAXPARTSIZE}	
+		}
+	}
 EOL
 done
 

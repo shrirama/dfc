@@ -32,7 +32,7 @@ func doHashfindServer(url string) string {
 func doHashfindMountPath(key string) string {
 	var mpath string
 	var min uint32 = math.MaxUint32
-	for _, minfo := range ctx.smap[ctx.configparam.ID].mntpath {
+	for _, minfo := range ctx.smap[ctx.config.ID].mntpath {
 		if glog.V(3) {
 			glog.Infof("mntpath = %s keypath = %s \n", minfo.Path, key)
 		}

@@ -26,8 +26,8 @@ type Dctx struct {
 	// Server Instance.
 	smap map[string]serverinfo
 
-	// ConfigParameter for DFC instance.
-	configparam ConfigParam
+	// Configuration
+	config dfconfig
 
 	// Statistics or Histogram for DFC. It's  currently designed as in Memory Non Persistent
 	// data structure to maintain histogram/statistic with respect to running DFC instance.
