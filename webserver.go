@@ -5,8 +5,6 @@
 package dfc
 
 import (
-	"errors"
-	"fmt"
 	"html"
 	"io"
 	"net/http"
@@ -32,14 +30,7 @@ func websrvstart() error {
 			glog.Errorf("Hit Error %q", err)
 			return err
 		}
-		if len(ctx.smap[ctx.configparam.ID].mntpath) == 0 {
-			errstr := fmt.Sprintf("Mounted storage count = %d Needed atleast 1 ",
-				len(ctx.smap[ctx.configparam.ID].mntpath))
-			glog.Errorf("%s \n", errstr)
-			err = errors.New(errstr)
-			return err
 
-		}
 		err = registerwithproxy()
 		if err != nil {
 			glog.Errorf("Hit Error %q", err)
@@ -90,9 +81,9 @@ func servhdlr(w http.ResponseWriter, r *http.Request) {
 		bktname := s[1]
 		keyname := s[2]
 		glog.Infof("Bucket name = %s Key Name = %s \n", bktname, keyname)
-		mpath := doHashfindMountPath(bktname + keyname)
+		// mpath := doHashfindMountPath(bktname + keyname)
 
-		fname := ctx.configparam.cachedir + mpath + bktname + "/" + keyname
+		fname := ctx.configparam.cachedir + "/" + bktname + "/" + keyname
 		glog.Infof("complete file name = %s \n", fname)
 
 		// check wheather filename exists in local directory or not

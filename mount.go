@@ -1,7 +1,6 @@
 package dfc
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
