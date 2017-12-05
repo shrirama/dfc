@@ -20,7 +20,7 @@ var wg sync.WaitGroup
 
 func main() {
 	flag.Parse()
-	for i := 0; i < 1; i++ {
+	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		if i%3 == 0 {
 			keyname := "/dir1/a" + strconv.Itoa(i)

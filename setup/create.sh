@@ -65,10 +65,10 @@ do
 		CONFFILE=$CONFPATH$c.json
 		if [ $c -eq 0 ]
 		then
-				go run dfcstart.go -configfile=$CONFFILE -type=proxy &
+				go run setup/dfcstart.go -configfile=$CONFFILE -type=proxy &
 #Need to wait for Proxy Client to be ready to accept new connections
 				sleep 10
 		else
-				go run dfcstart.go -configfile=$CONFFILE -type=server &
+				go run setup/dfcstart.go -configfile=$CONFFILE -type=server &
 		fi
 done
