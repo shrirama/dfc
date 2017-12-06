@@ -50,12 +50,12 @@ type listenconfig struct {
 // proxyconfig specifies well-known address for http proxy as http://<ipaddress>:<portnumber>
 type proxyconfig struct {
 	URL      string `json:"url"`      // used to register caching servers
-	Passthru bool   `json:"passthru"` // true for proxy, false (default) otherwise
+	Passthru bool   `json:"passthru"` // false: get then redirect, true (default): redirect right away
 }
 
 // Read JSON Config file and populate DFC Instance's config parameters.
 // We currently support only one configuration per JSON file.
-func initconfigparam(configfile string, loglevel string) error {
+func initconfigparam(configfile, loglevel, role string) error {
 	getConfig(configfile)
 
 	err := flag.Lookup("log_dir").Value.Set(ctx.config.Logdir)
@@ -82,7 +82,6 @@ func initconfigparam(configfile string, loglevel string) error {
 	// Argument specified at commandline or through flags has highest precedence.
 	if loglevel != "" {
 		err = flag.Lookup("v").Value.Set(loglevel)
-		glog.Infof("Set the User Specified loglevel = %s \n", loglevel)
 	} else {
 		err = flag.Lookup("v").Value.Set(ctx.config.Loglevel)
 	}
@@ -90,6 +89,10 @@ func initconfigparam(configfile string, loglevel string) error {
 		//  Not fatal as it will use default logging level
 		glog.Errorf("Failed to set loglevel = %v \n", err)
 	}
+
+	glog.Infof("============== Log level: %s Config: %s Role: %s ==============\n",
+		flag.Lookup("v").Value.String(), configfile, role)
+	glog.Flush()
 	return err
 }
 

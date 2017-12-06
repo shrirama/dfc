@@ -6,6 +6,7 @@ import (
 	_ "net/http/pprof" // profile
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"sync"
 	"testing"
@@ -60,7 +61,13 @@ func getkey(keyname string, t *testing.T) {
 	t.Logf(" URL = %s \n", url)
 	resp, err := http.Get(url)
 	if err != nil {
+		if match, _ := regexp.MatchString("connection refused", err.Error()); match {
+			t.Fatalf("http connection refused - terminating")
+		}
 		t.Logf("Failed to get key = %s err = %q", keyname, err)
+	}
+	if resp == nil {
+		return
 	}
 	defer resp.Body.Close()
 	// body, err := ioutil.ReadAll(resp.Body)

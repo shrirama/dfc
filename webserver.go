@@ -49,7 +49,6 @@ func websrvstart() error {
 
 // Function for handling request  on specific port
 func httphdlr(w http.ResponseWriter, r *http.Request) {
-
 	glog.Infof("httphdlr Request from %s: %s %q \n", r.RemoteAddr, r.Method, r.URL)
 
 	// Stop accepting new http request during Main daemon stop.
@@ -64,7 +63,6 @@ func httphdlr(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(http.StatusInternalServerError),
 			http.StatusInternalServerError)
 	}
-
 }
 
 // Servhdlr function serves request coming to listening port of DFC's Storage Server.
@@ -72,7 +70,6 @@ func httphdlr(w http.ResponseWriter, r *http.Request) {
 // This function checks wheather key exists locally or not. If key does not exist locally
 // it prepares session and download objects from S3 to path on local host.
 func servhdlr(w http.ResponseWriter, r *http.Request) {
-
 	switch r.Method {
 	case "GET":
 		// Path will have following format
@@ -80,11 +77,11 @@ func servhdlr(w http.ResponseWriter, r *http.Request) {
 		s := strings.SplitN(html.EscapeString(r.URL.Path), "/", 3)
 		bktname := s[1]
 		keyname := s[2]
-		glog.Infof("Bucket name = %s Key Name = %s \n", bktname, keyname)
+		glog.Infof("Bucket = %s Key = %s \n", bktname, keyname)
 		// mpath := doHashfindMountPath(bktname + keyname)
 
 		fname := ctx.config.Cachedir + "/" + bktname + "/" + keyname
-		glog.Infof("complete file name = %s \n", fname)
+		glog.Infof("fqn = %s \n", fname)
 
 		// check wheather filename exists in local directory or not
 		_, err := os.Stat(fname)
@@ -102,15 +99,12 @@ func servhdlr(w http.ResponseWriter, r *http.Request) {
 
 			err = downloadobject(w, downloader, fname, bktname, keyname)
 			if err != nil {
-				http.Error(w, http.StatusText(http.StatusInternalServerError),
-					http.StatusInternalServerError)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
 			} else {
-				glog.Infof("httphdlr Bucket = %s Key =%s download completed \n", bktname, keyname)
-				//fmt.Fprintf(w, "DFC-Daemon %q", html.EscapeString(r.URL.Path))
+				glog.Infof("Bucket = %s Key = %s downloaded \n", bktname, keyname)
 			}
 		} else {
-			glog.Infof("Bucket = %s Key =%s exist \n", bktname, keyname)
-			//fmt.Fprintf(w, "DFC-Daemon %q", html.EscapeString(r.URL.Path))
+			glog.Infof("Bucket = %s Key = %s exists \n", bktname, keyname)
 		}
 		file, err := os.Open(fname)
 		if err != nil {
@@ -126,23 +120,22 @@ func servhdlr(w http.ResponseWriter, r *http.Request) {
 			// It would require multipart and concurrency implementation in DFC itself.
 			_, err := io.Copy(w, file)
 			if err != nil {
-				glog.Errorf("Failed to Copy data to http response for fname %s err %v \n", fname, err)
+				glog.Errorf("Failed to copy data to http response for fname %s err %v \n", fname, err)
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			} else {
 				glog.Infof("Succefully copied file = %s to http response \n", fname)
 			}
 		}
-
 	case "POST":
 	case "PUT":
 	case "DELETE":
 	default:
-		glog.Errorf("Invalid  Request from %s: %s %q \n", r.RemoteAddr, r.Method, r.URL)
-		http.Error(w, http.StatusText(http.StatusMethodNotAllowed),
+		glog.Errorf("Invalid request from %s: %s %q \n", r.RemoteAddr, r.Method, r.URL)
+		http.Error(w, http.StatusText(http.StatusMethodNotAllowed)+": "+r.Method,
 			http.StatusMethodNotAllowed)
 
 	}
-
+	glog.Flush()
 }
 
 // This function download S3 object into local file.
@@ -190,7 +183,6 @@ func downloadobject(w http.ResponseWriter, downloader *s3manager.Downloader,
 			file.Name(), bytes)
 	}
 	return err
-
 }
 
 // Stop Http service .It waits for http outstanding requests to be completed

@@ -1,5 +1,11 @@
 #!/bin/bash
 
+############################################
+#
+# Usage: deploy.sh [-loglevel=0|1|2|3]
+#
+############################################
+
 INSTANCEPREFIX="dfc"
 TMPDIR="/tmp/nvidia"
 CACHEDIR="cache"
@@ -17,7 +23,7 @@ PROTO="tcp"
 CLDPROVIDER="amazon"
 DIRPATH="/tmp/nvidia/"
 CACHEDIR="/cache"
-LOGLEVEL="3"
+LOGLEVEL="0"
 LOGDIR="/log"
 CONFPATH="/etc/dfconf"
 INSTANCEPREFIX="dfc"
@@ -68,10 +74,16 @@ do
 		CONFFILE=$CONFPATH$c.json
 		if [ $c -eq 0 ]
 		then
-				go run setup/dfcstart.go -configfile=$CONFFILE -type=proxy &
-#Need to wait for Proxy Client to be ready to accept new connections
-				sleep 3
+				set -x
+				go run setup/dfcstart.go -configfile=$CONFFILE -role=proxy $1 $2 &
+				{ set +x; } 2>/dev/null
+				# wait for the proxy to start up
+				sleep 2
 		else
-				go run setup/dfcstart.go -configfile=$CONFFILE -type=server &
+				set -x
+				go run setup/dfcstart.go -configfile=$CONFFILE -role=server $1 $2 &
+				{ set +x; } 2>/dev/null
 		fi
 done
+sleep 2
+echo done

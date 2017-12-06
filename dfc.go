@@ -77,46 +77,37 @@ var ctx *Dctx
 
 // Initialization
 func dfcinit() {
-	var stype string
-	var conffile string
-	var loglevel string
-
-	flag.StringVar(&stype, "type", "", "a string var")
-	flag.StringVar(&conffile, "configfile", "", "a string var")
-
-	// Loglevel 1 : Must for debugging.
-	// Loglevel 2 : Important logs for control flow.
-	// Loglevel 3 : Logging arguments, headers and data.
-	// Loglevel 4  : Logging entry exit functions.
-	// WARN and Error Messages will be always logged regardless of levels.
-
-	// Default value can be overridden by config file or through CommandLine parameters.
-	flag.StringVar(&loglevel, "loglevel", "", "a string var")
+	// CLI to override dfc JSON config
+	var (
+		role     string
+		conffile string
+		loglevel string
+	)
+	flag.StringVar(&role, "role", "", "role: proxy OR server")
+	flag.StringVar(&conffile, "configfile", "", "config filename")
+	flag.StringVar(&loglevel, "loglevel", "0", "glog loglevel")
 
 	flag.Parse()
-	if conffile == "" || stype == "" {
-		fmt.Fprintf(os.Stderr, "Usage: go run dfc type=[proxy][server] configfile=file.json \n")
+	if conffile == "" || role == "" {
+		fmt.Fprintf(os.Stderr, "Usage: go run dfc role=<proxy|server> configfile=<somefile.json> \n")
 		os.Exit(2)
 	}
-	if stype != "proxy" && stype != "server" {
-		fmt.Fprintf(os.Stderr, "Invalid type = %s \n", stype)
-		fmt.Fprintf(os.Stderr, "Usage: go run dfc type=[proxy][server] configfile=name.json \n")
+	if role != "proxy" && role != "server" {
+		fmt.Fprintf(os.Stderr, "Invalid role = %s \n", role)
+		fmt.Fprintf(os.Stderr, "Usage: go run dfc role=<proxy|server> configfile=<somefile.json> \n")
 		os.Exit(2)
 	}
 	ctx = new(Dctx)
 	ctx.sig = make(chan os.Signal, 1)
 	ctx.cancel = make(chan struct{})
-	err := initconfigparam(conffile, loglevel)
+	err := initconfigparam(conffile, loglevel, role)
 	if err != nil {
 		// Will exit process and  dump the stack
-		glog.Fatalf("Failed to do initialization from config file = %s err = %v \n",
-			conffile, err)
+		glog.Fatalf("Failed to initialize, config = %s err = %v \n", conffile, err)
 	}
-	if stype == "proxy" {
+	if role == "proxy" {
 		ctx.proxy = true
 		ctx.smap = make(map[string]serverinfo)
-	} else {
-		ctx.proxy = false
 	}
 }
 

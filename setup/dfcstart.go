@@ -10,11 +10,11 @@ import (
 func main() {
 	ctx1, pool1, err := dfc.Init()
 	if err != nil {
-		fmt.Println(" 1A: Error in DFC initialization  %v \n", err)
+		fmt.Println("Error in DFC initialization %v \n", err)
 		return
 	}
 	go dfc.Run(pool1)
-	// stop after 60 seconds
+	// stop after 10 min
 	time.Sleep(6000 * time.Second)
 	dfc.Stop(ctx1)
 }
