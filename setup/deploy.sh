@@ -31,7 +31,7 @@ read servcount
 START=0
 END=$servcount
 
-for (( c=$START; c<$END; c++ ))
+for (( c=$START; c<=$END; c++ ))
 do
 	ID=$(expr $ID + 1)
 	PORT=$(expr $PORT + 1)

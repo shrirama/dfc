@@ -34,6 +34,10 @@ kill:
 rmall:
 	@rm -rf /tmp/nvidia
 
+cpuprof:
+	@go test -test.cpuprofile=/tmp/cpu.prof -v
+	@go tool pprof -svg -lines /tmp/cpu.prof > /tmp/cpu.svg
+
 install:
 	@go install $(LDFLAGS)
 

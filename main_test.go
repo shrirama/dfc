@@ -3,6 +3,7 @@ package dfc_test
 import (
 	"io"
 	"net/http"
+	_ "net/http/pprof" // profile
 	"os"
 	"path/filepath"
 	"strconv"
@@ -13,6 +14,7 @@ import (
 var wg sync.WaitGroup
 
 func Test_3dirs(t *testing.T) {
+	// profile go func() { t.Log(http.ListenAndServe("localhost:6060", nil)) }()
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		if i%3 == 0 {
@@ -55,7 +57,6 @@ func getkey(keyname string, t *testing.T) {
 		t.Logf("Unable to create file = %s err = %q \n", fname, err)
 		return
 	}
-	//glog.Infof(" URL = %s \n", url)
 	t.Logf(" URL = %s \n", url)
 	resp, err := http.Get(url)
 	if err != nil {
