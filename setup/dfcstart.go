@@ -2,13 +2,13 @@ package main
 
 import (
 	"fmt"
+	_ "net/http/pprof"
 	"time"
 
 	"github.com/shrirama/dfc"
 )
 
 func main() {
-	//conf1 := os.Getenv("DFC_CONF1")
 	ctx1, pool1, err := dfc.Init()
 	if err != nil {
 		fmt.Println(" 1A: Error in DFC initialization  %v \n", err)

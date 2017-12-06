@@ -1,48 +1,39 @@
-// CopyRight Notice: All rights reserved
-//
-//
-
-// Test Program to request data from Proxy
-package main
+package dfc_test
 
 import (
-	"flag"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"sync"
+	"testing"
 )
 
 var wg sync.WaitGroup
 
-func main() {
-	flag.Parse()
+func Test_3dirs(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		if i%3 == 0 {
 			keyname := "/dir1/a" + strconv.Itoa(i)
-			go getkey(keyname)
+			go getkey(keyname, t)
 		} else if i%3 == 1 {
 			keyname := "/dir2/a" + strconv.Itoa(i)
-			go getkey(keyname)
+			go getkey(keyname, t)
 		} else {
 			keyname := "/dir3/a" + strconv.Itoa(i)
-			go getkey(keyname)
+			go getkey(keyname, t)
 		}
 	}
 	wg.Wait()
-	//glog.Info("Completed main exiting \n")
-	fmt.Printf("Completed main exiting \n")
 }
 
-func getkey(keyname string) {
+func getkey(keyname string, t *testing.T) {
 	defer wg.Done()
 	url := "http://localhost:" + "8080" + "/shri-new" + keyname
 	fname := "/tmp/shri-new" + keyname
-	// strips the last part from filepath
+	// strips the last part from the filepath
 	dirname := filepath.Dir(fname)
 	_, err := os.Stat(dirname)
 	if err != nil {
@@ -50,35 +41,34 @@ func getkey(keyname string) {
 		if os.IsNotExist(err) {
 			err = os.MkdirAll(dirname, 0755)
 			if err != nil {
-				fmt.Printf("Failed to create bucket dir = %s err = %q \n", dirname, err)
+				t.Logf("Failed to create bucket dir = %s err = %q \n", dirname, err)
 				return
 			}
 		} else {
-			fmt.Printf("Failed to do stat = %s err = %q \n", dirname, err)
+			t.Logf("Failed to do stat = %s err = %q \n", dirname, err)
 			return
 		}
 	}
 
 	file, err := os.Create(fname)
 	if err != nil {
-		fmt.Printf("Unable to create file = %s err = %q \n", fname, err)
+		t.Logf("Unable to create file = %s err = %q \n", fname, err)
 		return
 	}
 	//glog.Infof(" URL = %s \n", url)
-	fmt.Printf(" URL = %s \n", url)
+	t.Logf(" URL = %s \n", url)
 	resp, err := http.Get(url)
 	if err != nil {
-		fmt.Printf("Failed to get key = %s err = %q", keyname, err)
+		t.Logf("Failed to get key = %s err = %q", keyname, err)
 	}
 	defer resp.Body.Close()
-	//body, err := ioutil.ReadAll(resp.Body)
+	// body, err := ioutil.ReadAll(resp.Body)
 	// io.Copy writes 32k at a time
 	numBytesWritten, err := io.Copy(file, resp.Body)
 	if err != nil {
-		fmt.Printf("Failed to write to file err %q \n", err)
-		panic(err)
+		t.Errorf("Failed to write to file err %q \n", err)
 	} else {
-		fmt.Printf("Succesfully downloaded = %s and written = %d bytes \n",
+		t.Logf("Succesfully downloaded = %s and written = %d bytes \n",
 			fname, numBytesWritten)
 	}
 }

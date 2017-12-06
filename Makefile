@@ -28,6 +28,12 @@ build: $(TARGET)
 clean:
 	@rm -f $(TARGET)
 
+kill:
+	@pkill -9 dfcstart
+
+rmall:
+	@rm -rf /tmp/nvidia
+
 install:
 	@go install $(LDFLAGS)
 

@@ -76,7 +76,7 @@ type serverinfo struct {
 var ctx *Dctx
 
 // Initialization
-func init() {
+func dfcinit() {
 	var stype string
 	var conffile string
 	var loglevel string
@@ -124,6 +124,9 @@ func init() {
 func Init() (*Dctx, *group.Group, error) {
 	var pool *group.Group
 	var err error
+
+	dfcinit()
+
 	pool = new(group.Group)
 
 	// Main daemon thread waiting in for loop for signal

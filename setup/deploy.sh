@@ -26,8 +26,7 @@ MAXCONCURRENTUPLOAD=64
 MAXPARTSIZE=4294967296
 
 
-echo Enter Total Number of Proxy + Storage Server to be started.
-echo There will be 1 Proxy server and Rest would be storage servers.
+echo Enter number of caching servers:
 read servcount
 START=0
 END=$servcount
@@ -64,14 +63,14 @@ done
 
 # Start Proxy Client and Storage Daemon, First Configuration file is used for Proxy 
 # and subsequent one is used for Storage Server(s).
-for (( c=$START; c<$END; c++ ))
+for (( c=$START; c<=$END; c++ ))
 do
 		CONFFILE=$CONFPATH$c.json
 		if [ $c -eq 0 ]
 		then
 				go run setup/dfcstart.go -configfile=$CONFFILE -type=proxy &
 #Need to wait for Proxy Client to be ready to accept new connections
-				sleep 10
+				sleep 3
 		else
 				go run setup/dfcstart.go -configfile=$CONFFILE -type=server &
 		fi
