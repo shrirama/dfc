@@ -25,7 +25,7 @@ func Test_ten(t *testing.T) {
 		wg.Add(1)
 		keyname := "/dir" + strconv.Itoa(i%3+1) + "/a" + strconv.Itoa(i)
 		// false: read the response and drop it, true: write it to a file
-		go getAndCopyTmp(keyname, t, wg, false)
+		go getAndCopyTmp(keyname, t, wg, true)
 	}
 	wg.Wait()
 }

@@ -12,8 +12,10 @@ package dfc
 import (
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/golang/glog"
 	"github.com/oklog/oklog/pkg/group"
@@ -24,8 +26,8 @@ const (
 	roleproxy   = "proxy"
 )
 
-// Dctx : DFC context is context for each DFC instance(Proxy or Storage Servers).
-type Dctx struct {
+// global context for each DFC instance (Proxy or Storage Server)
+type ctxDfc struct {
 
 	// Map of Registered storage servers with Proxy Instance. It will be NIL for Storage
 	// Server Instance.
@@ -55,6 +57,9 @@ type Dctx struct {
 
 	// WaitGroup for completing Http Requests.
 	httprqwg sync.WaitGroup
+
+	// http listener
+	listener net.Listener
 }
 
 // Server Registration info
@@ -78,7 +83,7 @@ type serverinfo struct {
 }
 
 // Global context
-var ctx *Dctx
+var ctx = &ctxDfc{}
 
 // Initialization
 func dfcinit() {
@@ -102,7 +107,6 @@ func dfcinit() {
 		fmt.Fprintf(os.Stderr, "Usage: go run dfc role=<proxy|server> configfile=<somefile.json>\n")
 		os.Exit(2)
 	}
-	ctx = new(Dctx)
 	ctx.sig = make(chan os.Signal, 1)
 	ctx.cancel = make(chan struct{})
 	err := initconfigparam(conffile, loglevel, role)
@@ -117,7 +121,7 @@ func dfcinit() {
 }
 
 // Init function initialize DFC Instance's Process Group.
-func Init() (*Dctx, *group.Group, error) {
+func Init() (*ctxDfc, *group.Group, error) {
 	var pool *group.Group
 	var err error
 
@@ -148,34 +152,30 @@ func Run(pool *group.Group) {
 	}
 }
 
-// Stop DFC instance. similar to user pressing CTL-C or interrupt
-func Stop(ctx *Dctx) {
-	if glog.V(2) {
-		glog.Infof("Stop signal to DFC Main worker \n")
-	}
+// Stop DFC service (similar to user pressing CTRL-C)
+func Stop(ctx *ctxDfc) {
+	glog.Infof("Terminating on timeout")
 	close(ctx.cancel)
 }
 
-// Daemon thread running in for loop until receives cancel signal.
+// TODO: empty
 func dstart() error {
-	// This worker keep running until cancel is called
 	for {
-		// Using select to have extendability for other cases
 		select {
 		case <-ctx.cancel:
 			if glog.V(2) {
-				glog.Info("The Mainworker was canceled\n")
+				glog.Info("dstart: got Cancel")
 			}
 			return nil
+		default:
+			time.Sleep(time.Millisecond * 10)
 		}
 	}
 }
 
 // Daemon exit function.
 func dstop(err error) {
-	if glog.V(2) {
-		glog.Infof("The Mainworker was interrupted with: %v\n", err)
-	}
+	glog.Infof("dstop: %v", err)
 
 	// Not protecting it through mutex or atomic update for performance reason.
 	// It will not cause any correctness issue.

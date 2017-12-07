@@ -89,8 +89,7 @@ func initconfigparam(configfile, loglevel, role string) error {
 	}
 
 	glog.Infof("============== ")
-	glog.Infof("============== Log level: %s Config: %s Role: %s ==============",
-		flag.Lookup("v").Value.String(), configfile, role)
+	glog.Infof("============== Log level: %s Config: %s Role: %s", flag.Lookup("v").Value.String(), configfile, role)
 	glog.Infof("============== ")
 	glog.Flush()
 	return err

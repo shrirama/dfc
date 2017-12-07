@@ -24,26 +24,21 @@ func sighandler() error {
 	switch s {
 	// kill -SIGHUP XXXX
 	case syscall.SIGHUP:
-		glog.Info("hungup")
-		return errors.New("Received SIGHUP, Cancelling")
-
+		return errors.New("Signal SIGHUP")
 	// kill -SIGINT XXXX or Ctrl+c
 	case syscall.SIGINT:
-		glog.Info("GOT SIGINT")
-		return errors.New("Received SIGINT, Cancelling")
+		return errors.New("Signal SIGINT")
 	// kill -SIGTERM XXXX
 	case syscall.SIGTERM:
-		glog.Info("Force Stop")
-		return errors.New("Received SIGTERM, Cancelling")
+		return errors.New("Signal SIGTERM")
 
 	// kill -SIGQUIT XXXX
 	case syscall.SIGQUIT:
-		glog.Info("Stop and Core dump")
-		return errors.New("Received SIGQUIT, Cancelling")
+		return errors.New("Signal SIGQUIT")
 	default:
-		glog.Info("Unknown Signal")
-		return errors.New("Received Unknown signal, Cancelling")
+		glog.Errorln("Unknown Signal:", s)
 	}
+	return nil
 }
 
 // Exit function in context of signal

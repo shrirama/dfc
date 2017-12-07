@@ -7,6 +7,7 @@ package dfc
 import (
 	"html"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -39,18 +40,23 @@ func websrvstart() error {
 		// TODO revisit
 
 	}
-	wbsvport := http.NewServeMux()
-	wbsvport.HandleFunc("/", httphdlr)
+	httpmux := http.NewServeMux()
+	httpmux.HandleFunc("/", httphdlr)
 	portstring := ":" + ctx.config.Listen.Port
-	ports := string(portstring)
-	return http.ListenAndServe(ports, wbsvport)
+
+	ctx.listener, err = net.Listen("tcp", portstring)
+	if err != nil {
+		glog.Errorf("Failed to listen, portstring %s err %v", portstring, err)
+		return err
+	}
+	return http.Serve(ctx.listener, httpmux)
 
 }
 
 // Function for handling request  on specific port
 func httphdlr(w http.ResponseWriter, r *http.Request) {
 	if glog.V(1) {
-		glog.Infof("httphdlr Request from %s: %s %q \n", r.RemoteAddr, r.Method, r.URL)
+		glog.Infof("HTTP request from %s: %s %q", r.RemoteAddr, r.Method, r.URL)
 	}
 
 	// Stop accepting new http request during Main daemon stop.
@@ -61,7 +67,7 @@ func httphdlr(w http.ResponseWriter, r *http.Request) {
 			servhdlr(w, r)
 		}
 	} else {
-		glog.Infof("All daemons and handler are being stopped \n")
+		glog.Infof("Stopping...")
 		http.Error(w, http.StatusText(http.StatusInternalServerError),
 			http.StatusInternalServerError)
 	}
@@ -186,7 +192,11 @@ func downloadobject(w http.ResponseWriter, downloader *s3manager.Downloader,
 // Stop Http service .It waits for http outstanding requests to be completed
 // before returning.
 func websrvstop(err error) {
-	glog.Infof("The NVWebServer worker was interrupted with: %v\n", err)
-	// Wait for completion of all pending HTTP requests
+	glog.Infof("Stop http worker, err %v", err)
+
+	// stop listening
+	ctx.listener.Close()
+
+	// Wait for the completion of all pending HTTP requests
 	ctx.httprqwg.Wait()
 }

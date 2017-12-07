@@ -26,7 +26,7 @@ build: $(TARGET)
 	@true
 
 kill:
-	@pkill -9 dfcstart 2>/dev/null; true
+	@pkill -SIGINT dfcstart 2>/dev/null; sleep 1; true
 
 # delete only caches, not logs
 rmcache:
