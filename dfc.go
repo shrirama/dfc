@@ -46,6 +46,12 @@ type ctxDfc struct {
 	// Channel for listening cancellation request.
 	cancel chan struct{}
 
+	// Channel for cancelling FSCheck timer
+	fschkchan chan bool
+
+	// List of Usable mountpoints on storage server
+	mntpath []MountPoint
+
 	// stopinprogress is set during main daemon thread stopping. DFC instance cannot
 	// accept new http requests once stopinprogress is set.
 	stopinprogress bool
@@ -55,11 +61,17 @@ type ctxDfc struct {
 	// False will imply running as Storage Server.
 	proxy bool
 
+	// CheckFS is running or not.
+	checkfsrunning bool
+
 	// WaitGroup for completing Http Requests.
 	httprqwg sync.WaitGroup
 
 	// http listener
 	listener net.Listener
+
+	// WaitGroup for completing fscheck on all mountpaths
+	fschkwg sync.WaitGroup
 }
 
 // Server Registration info

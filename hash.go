@@ -32,15 +32,23 @@ func doHashfindServer(url string) string {
 func doHashfindMountPath(key string) string {
 	var mpath string
 	var min uint32 = math.MaxUint32
-	for _, minfo := range ctx.smap[ctx.config.ID].mntpath {
-		if glog.V(3) {
-			glog.Infof("mntpath = %s keypath = %s \n", minfo.Path, key)
+	if len(ctx.mntpath) == 0 {
+		return ctx.config.Cachedir
+	} else if len(ctx.mntpath) == 1 {
+		glog.Infof("SHRI mntpath = %s keypath = %s \n", ctx.mntpath[0].Path, key)
+		return ctx.mntpath[0].Path
+	} else {
+
+		for _, minfo := range ctx.mntpath {
+			if glog.V(3) {
+				glog.Infof("mntpath = %s keypath = %s \n", minfo.Path, key)
+			}
+			cs := crc32.Checksum([]byte(key+minfo.Path), crc32.IEEETable)
+			if cs < min {
+				min = cs
+				mpath = minfo.Path
+			}
 		}
-		cs := crc32.Checksum([]byte(key+minfo.Path), crc32.IEEETable)
-		if cs < min {
-			min = cs
-			mpath = minfo.Path
-		}
+		return mpath
 	}
-	return mpath
 }

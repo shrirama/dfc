@@ -19,12 +19,13 @@ type stats struct {
 	rdmaxsize uint64
 }
 
-// Stat function will provide in-memory statistics for local DFC instance.
+// Getstat function will provide in-memory statistics for local DFC instance.
 // TODO Yet to be implemented.
-func Stat() stats {
+func Getstat() stats {
 	if glog.V(4) {
 		glog.Info("Stat function \n")
 	}
+	stat := ctx.stat
 	// TODO
-	return ctx.stat
+	return stat
 }

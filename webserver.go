@@ -25,19 +25,26 @@ func websrvstart() error {
 	var err error
 	// server must register with the proxy
 	if !ctx.proxy {
-		sinfo := ctx.smap[ctx.config.ID]
-		sinfo.mntpath, err = parseProcMounts(procMountsPath)
+		// Chanel for stopping filesystem check timer.
+		ctx.fschkchan = make(chan bool)
+		err = registerwithproxy()
 		if err != nil {
 			glog.Errorf("Failed to parse mounts, err %v", err)
 			return err
 		}
 
-		err = registerwithproxy()
+		ctx.mntpath, err = parseProcMounts(procMountsPath)
 		if err != nil {
 			glog.Errorf("Failed to register with proxy, err %v", err)
 			return err
 		}
-		// TODO revisit
+		glog.Infof(" No of mountpath found = %d", len(ctx.mntpath))
+		if len(ctx.mntpath) == 0 {
+			glog.Infof("Mounted storage count = %d Needed atleast 1 ",
+				len(ctx.mntpath))
+		}
+		// Start FScheck thread
+		go fsCheckTimer(ctx.fschkchan)
 
 	}
 	httpmux := http.NewServeMux()
@@ -80,16 +87,20 @@ func httphdlr(w http.ResponseWriter, r *http.Request) {
 func servhdlr(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
+
 		// Path will have following format
 		// /<bucketname>/keypath
 		// FIXME: hardcoded split
 		s := strings.SplitN(html.EscapeString(r.URL.Path), "/", 3)
 		bktname := s[1]
 		keyname := s[2]
-		fname := ctx.config.Cachedir + "/" + bktname + "/" + keyname
-		glog.Infof("Handle GET for bucket %s key %s => cached file %q\n", bktname, keyname, fname)
+		glog.Infof("Bucket name = %s Key Name = %s \n", bktname, keyname)
+		mpath := doHashfindMountPath(bktname + keyname)
 
-		// check wheather filename exists in local directory or not
+		fname := mpath + "/" + bktname + "/" + keyname
+		glog.Infof("complete file name = %s \n", fname)
+
+		// Check wheather filename exists in local directory or not
 		_, err := os.Stat(fname)
 		if os.IsNotExist(err) {
 			// TODO optimization to avoid creating sessions for each request.
@@ -103,7 +114,7 @@ func servhdlr(w http.ResponseWriter, r *http.Request) {
 			downloader := s3manager.NewDownloader(sess)
 			ctx.httprqwg.Add(1)
 
-			err = downloadobject(w, downloader, fname, bktname, keyname)
+			err = downloadobject(w, downloader, mpath, bktname, keyname)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
@@ -144,7 +155,7 @@ func servhdlr(w http.ResponseWriter, r *http.Request) {
 
 // This function download S3 object into local file.
 func downloadobject(w http.ResponseWriter, downloader *s3manager.Downloader,
-	fname string, bucket string, kname string) error {
+	mpath string, bucket string, kname string) error {
 
 	defer ctx.httprqwg.Done()
 
@@ -152,9 +163,10 @@ func downloadobject(w http.ResponseWriter, downloader *s3manager.Downloader,
 	var err error
 	var bytes int64
 
-	pathname := ctx.config.Cachedir + "/" + bucket + "/" + kname
+	//pathname := ctx.configparam.cachedir + "/" + bucket + "/" + kname
+	fname := mpath + "/" + bucket + "/" + kname
 	// strips the last part from filepath
-	dirname := filepath.Dir(pathname)
+	dirname := filepath.Dir(fname)
 	_, err = os.Stat(dirname)
 	if err != nil {
 		// Create bucket-path directory for non existent paths.
@@ -199,4 +211,7 @@ func websrvstop(err error) {
 
 	// Wait for the completion of all pending HTTP requests
 	ctx.httprqwg.Wait()
+	if !ctx.proxy {
+		close(ctx.fschkchan)
+	}
 }

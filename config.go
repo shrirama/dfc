@@ -27,6 +27,7 @@ type dfconfig struct {
 	Listen        listenconfig `json:"listen"`
 	Proxy         proxyconfig  `json:"proxy"`
 	S3            s3config     `json:"s3"`
+	Cache         cacheconfig  `json:"cache"`
 }
 
 // Need to define structure for each cloud vendor like S3 , Azure, Cloud etc
@@ -37,6 +38,19 @@ type s3config struct {
 	Maxconcurrdownld uint32 `json:"maxconcurrdownld"` // Concurent Download for a session.
 	Maxconcurrupld   uint32 `json:"maxconcurrupld"`   // Concurrent Upload for a session.
 	Maxpartsize      uint64 `json:"maxpartsize"`      // Maximum part size for Upload and Download used for buffering.
+}
+
+// cacheconfig specifies caching specific parameters.
+type cacheconfig struct {
+
+	// FSCheck frequency specifies frequency to run FSCheck thread . It is specified in minutes.
+	FSCheckfreq uint32 `json:"fscheckfreq"`
+
+	// LowWaterMark is specified in %, FS Usage need to be higher than LowWaterMark for FSCheck thread to purge old cached data.
+	FSLowWaterMark uint32 `json:"fslowwatermark"`
+
+	// HighWaterMark is specified in %. FSCheck thread will purge old data aggressively if FS Usage is more than HighWaterMark.
+	FSHighWaterMark uint32 `json:"fshighwatermark"`
 }
 
 // listenconfig specifies listner Parameter for DFC instance.
