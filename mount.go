@@ -8,6 +8,7 @@ import (
 	"github.com/golang/glog"
 )
 
+// MountPoint structure encapsulates mount specific information on local DFC Node.
 type MountPoint struct {
 	Device string
 	Path   string
@@ -44,6 +45,9 @@ func parseProcMounts(filename string) ([]MountPoint, error) {
 			continue
 		}
 		if checkdfcmntpath(fields[1]) {
+			if glog.V(3) {
+				glog.Infof(" Found DFC storage Mountpath = %s \n", fields[1])
+			}
 			mp := MountPoint{
 				Device: fields[0],
 				Path:   fields[1],
@@ -62,17 +66,17 @@ func checkdfcmntpath(path string) bool {
 
 	if strings.HasPrefix(path, dfcStoreMntPrefix) && checkdfcsignature(path) {
 		return true
-	} else {
-		return false
 	}
+	return false
+
 }
 
 func checkdfcsignature(path string) bool {
+	//TODO keep handle open on file so that underlying mountpoint cannot be unmounted.
 	filename := path + dfcSignatureFileName
 	_, err := os.Stat(filename)
 	if err != nil {
 		return false
-	} else {
-		return true
 	}
+	return true
 }

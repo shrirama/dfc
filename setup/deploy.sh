@@ -24,7 +24,9 @@ INSTANCEPREFIX="dfc"
 MAXCONCURRENTDOWNLOAD=64
 MAXCONCURRENTUPLOAD=64
 MAXPARTSIZE=4294967296
-
+FSCHECKFREQ=5
+FSLOWWATERMARK=65
+FSHIGHWATERMARK=80
 
 echo Enter number of caching servers:
 read servcount
@@ -56,6 +58,11 @@ do
 			"maxconcurrdownld":	${MAXCONCURRENTDOWNLOAD},
 			"maxconcurrupld":	${MAXCONCURRENTUPLOAD},
 			"maxpartsize":		${MAXPARTSIZE}	
+		},
+		"cache": {
+			"fscheckfreq":	${FSCHECKFREQ},
+			"fslowwatermark":	${FSLOWWATERMARK},
+			"fshighwatermark":		${FSHIGHWATERMARK}	
 		}
 	}
 EOL
