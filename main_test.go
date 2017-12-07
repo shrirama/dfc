@@ -1,7 +1,9 @@
 package dfc_test
 
 import (
+	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	_ "net/http/pprof" // profile
 	"os"
@@ -12,35 +14,28 @@ import (
 	"testing"
 )
 
-var wg sync.WaitGroup
+const (
+	remroot = "/shri-new"
+	locroot = "/iocopy"
+)
 
-func Test_3dirs(t *testing.T) {
-	// profile go func() { t.Log(http.ListenAndServe("localhost:6060", nil)) }()
+func Test_ten(t *testing.T) {
+	var wg = &sync.WaitGroup{}
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
-		if i%3 == 0 {
-			keyname := "/dir1/a" + strconv.Itoa(i)
-			go getkey(keyname, t)
-		} else if i%3 == 1 {
-			keyname := "/dir2/a" + strconv.Itoa(i)
-			go getkey(keyname, t)
-		} else {
-			keyname := "/dir3/a" + strconv.Itoa(i)
-			go getkey(keyname, t)
-		}
+		keyname := "/dir" + strconv.Itoa(i%3+1) + "/a" + strconv.Itoa(i)
+		go getAndCopyTmp(keyname, t, wg)
 	}
 	wg.Wait()
 }
 
-func getkey(keyname string, t *testing.T) {
+func getAndCopyTmp(keyname string, t *testing.T, wg *sync.WaitGroup) {
 	defer wg.Done()
-	url := "http://localhost:" + "8080" + "/shri-new" + keyname
-	fname := "/tmp/shri-new" + keyname
-	// strips the last part from the filepath
+	url := "http://localhost:" + "8080" + remroot + keyname
+	fname := "/tmp" + locroot + keyname
 	dirname := filepath.Dir(fname)
 	_, err := os.Stat(dirname)
 	if err != nil {
-		// Create bucket-path directory for non existent paths.
 		if os.IsNotExist(err) {
 			err = os.MkdirAll(dirname, 0755)
 			if err != nil {
@@ -48,7 +43,7 @@ func getkey(keyname string, t *testing.T) {
 				return
 			}
 		} else {
-			t.Logf("Failed to do stat = %s err = %q \n", dirname, err)
+			t.Logf("Failed to fstat, dir = %s err = %q \n", dirname, err)
 			return
 		}
 	}
@@ -69,9 +64,8 @@ func getkey(keyname string, t *testing.T) {
 	if resp == nil {
 		return
 	}
+	// write file locally
 	defer resp.Body.Close()
-	// body, err := ioutil.ReadAll(resp.Body)
-	// io.Copy writes 32k at a time
 	numBytesWritten, err := io.Copy(file, resp.Body)
 	if err != nil {
 		t.Errorf("Failed to write to file err %q \n", err)
@@ -79,4 +73,32 @@ func getkey(keyname string, t *testing.T) {
 		t.Logf("Succesfully downloaded = %s and written = %d bytes \n",
 			fname, numBytesWritten)
 	}
+}
+
+func Benchmark_one(b *testing.B) {
+	var wg = &sync.WaitGroup{}
+	for i := 0; i < 40; i++ {
+		wg.Add(1)
+		keyname := "/dir" + strconv.Itoa(i%3+1) + "/a" + strconv.Itoa(i)
+		go get(keyname, b, wg)
+	}
+	wg.Wait()
+}
+
+func get(keyname string, b *testing.B, wg *sync.WaitGroup) {
+	defer wg.Done()
+	url := "http://localhost:" + "8080" + remroot + keyname
+	resp, err := http.Get(url)
+	if err != nil {
+		if match, _ := regexp.MatchString("connection refused", err.Error()); match {
+			fmt.Println("http connection refused - terminating")
+			os.Exit(1)
+		}
+		fmt.Printf("Failed to get key = %s err = %q\n", keyname, err)
+	}
+	if resp == nil {
+		return
+	}
+	ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
 }

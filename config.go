@@ -60,10 +60,9 @@ func initconfigparam(configfile, loglevel, role string) error {
 
 	err := flag.Lookup("log_dir").Value.Set(ctx.config.Logdir)
 	if err != nil {
-		// Not fatal as it will use default logfile under /tmp/
+		// Non-fatal as it'll be placing it directly under the /tmp
 		glog.Errorf("Failed to set glog file name = %v \n", err)
 	}
-
 	if glog.V(3) {
 		glog.Infof("Logdir = %s Cachedir = %s Proto =%s Port = %s ID = %s loglevel = %s \n",
 			ctx.config.Logdir, ctx.config.Cachedir, ctx.config.Listen.Proto,

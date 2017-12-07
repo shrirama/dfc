@@ -27,13 +27,13 @@ func websrvstart() error {
 		sinfo := ctx.smap[ctx.config.ID]
 		sinfo.mntpath, err = parseProcMounts(procMountsPath)
 		if err != nil {
-			glog.Errorf("Hit Error %q", err)
+			glog.Errorf("Hit Error %v", err)
 			return err
 		}
 
 		err = registerwithproxy()
 		if err != nil {
-			glog.Errorf("Hit Error %q", err)
+			glog.Errorf("Hit Error %v", err)
 			return err
 		}
 		// TODO revisit
@@ -74,14 +74,12 @@ func servhdlr(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		// Path will have following format
 		// /<bucketname>/keypath
+		// FIXME: hardcoded split
 		s := strings.SplitN(html.EscapeString(r.URL.Path), "/", 3)
 		bktname := s[1]
 		keyname := s[2]
-		glog.Infof("Bucket = %s Key = %s \n", bktname, keyname)
-		// mpath := doHashfindMountPath(bktname + keyname)
-
 		fname := ctx.config.Cachedir + "/" + bktname + "/" + keyname
-		glog.Infof("fqn = %s \n", fname)
+		glog.Infof("Handle GET for bucket %s key %s => cached file %q\n", bktname, keyname, fname)
 
 		// check wheather filename exists in local directory or not
 		_, err := os.Stat(fname)
@@ -100,15 +98,13 @@ func servhdlr(w http.ResponseWriter, r *http.Request) {
 			err = downloadobject(w, downloader, fname, bktname, keyname)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
-			} else {
-				glog.Infof("Bucket = %s Key = %s downloaded \n", bktname, keyname)
 			}
 		} else {
-			glog.Infof("Bucket = %s Key = %s exists \n", bktname, keyname)
+			glog.Infof("Bucket %s key %s already exists\n", bktname, keyname)
 		}
 		file, err := os.Open(fname)
 		if err != nil {
-			glog.Errorf("Failed to open file %s err %v \n", fname, err)
+			glog.Errorf("Failed to open file %q err  %v\n", fname, err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {
 			defer file.Close()
@@ -120,10 +116,10 @@ func servhdlr(w http.ResponseWriter, r *http.Request) {
 			// It would require multipart and concurrency implementation in DFC itself.
 			_, err := io.Copy(w, file)
 			if err != nil {
-				glog.Errorf("Failed to copy data to http response for fname %s err %v \n", fname, err)
+				glog.Errorf("Failed to copy data to http response for fname %q err %v\n", fname, err)
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			} else {
-				glog.Infof("Succefully copied file = %s to http response \n", fname)
+				glog.Infof("Copied %q to http response\n", fname)
 			}
 		}
 	case "POST":
@@ -157,18 +153,18 @@ func downloadobject(w http.ResponseWriter, downloader *s3manager.Downloader,
 		if os.IsNotExist(err) {
 			err = os.MkdirAll(dirname, 0755)
 			if err != nil {
-				glog.Errorf("Failed to create bucket dir = %s err = %q \n", dirname, err)
+				glog.Errorf("Failed to create bucket dir %s err %v\n", dirname, err)
 				return err
 			}
 		} else {
-			glog.Errorf("Failed to do stat = %s err = %q \n", dirname, err)
+			glog.Errorf("Failed to fstat dir %q err %v\n", dirname, err)
 			return err
 		}
 	}
 
 	file, err = os.Create(fname)
 	if err != nil {
-		glog.Errorf("Unable to create file = %s err = %q \n", fname, err)
+		glog.Errorf("Unable to create file %q err %v\n", fname, err)
 		return err
 	}
 	bytes, err = downloader.Download(file, &s3.GetObjectInput{
@@ -176,11 +172,11 @@ func downloadobject(w http.ResponseWriter, downloader *s3manager.Downloader,
 		Key:    aws.String(kname),
 	})
 	if err != nil {
-		glog.Errorf("Failed to download key %q from bucket %q, %q",
+		glog.Errorf("Failed to download key %s from bucket %s err %v\n",
 			kname, bucket, err)
 	} else {
-		glog.Infof("Successfully downloaded file %q size  = %d bytes \n",
-			file.Name(), bytes)
+		glog.Infof("Downloaded %q size = %d from bucket %s by key %s\n",
+			file.Name(), bytes, bucket, kname)
 	}
 	return err
 }
