@@ -25,18 +25,21 @@ $(TARGET): $(SRC)
 build: $(TARGET)
 	@true
 
-clean:
-	@rm -f $(TARGET)
-
 kill:
-	@pkill -9 dfcstart
+	@pkill -9 dfcstart 2>/dev/null; true
 
 rmall:
 	@rm -rf /tmp/nvidia
 
+clean: kill rmall
+	@rm -f $(TARGET)
+
+# run benchmarks 10 times to generate cpu.prof
 cpuprof:
-	@go test -test.cpuprofile=/tmp/cpu.prof -v
-	@go tool pprof -svg -lines /tmp/cpu.prof > /tmp/cpu.svg
+	@go test -v -run=XXX -bench=. -count 10 -cpuprofile=/tmp/cpu.prof
+
+flamegraph: cpuprof
+	@go-torch dfc.test /tmp/cpu.prof -u http://localhost:6060/
 
 install:
 	@go install $(LDFLAGS)
