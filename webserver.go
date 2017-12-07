@@ -22,18 +22,18 @@ import (
 // Start instance of webserver listening on specific port.
 func websrvstart() error {
 	var err error
-	// For server it needs to register with Proxy client before it can start
+	// server must register with the proxy
 	if !ctx.proxy {
 		sinfo := ctx.smap[ctx.config.ID]
 		sinfo.mntpath, err = parseProcMounts(procMountsPath)
 		if err != nil {
-			glog.Errorf("Hit Error %v", err)
+			glog.Errorf("Failed to parse mounts, err %v", err)
 			return err
 		}
 
 		err = registerwithproxy()
 		if err != nil {
-			glog.Errorf("Hit Error %v", err)
+			glog.Errorf("Failed to register with proxy, err %v", err)
 			return err
 		}
 		// TODO revisit
@@ -49,7 +49,9 @@ func websrvstart() error {
 
 // Function for handling request  on specific port
 func httphdlr(w http.ResponseWriter, r *http.Request) {
-	glog.Infof("httphdlr Request from %s: %s %q \n", r.RemoteAddr, r.Method, r.URL)
+	if glog.V(1) {
+		glog.Infof("httphdlr Request from %s: %s %q \n", r.RemoteAddr, r.Method, r.URL)
+	}
 
 	// Stop accepting new http request during Main daemon stop.
 	if !ctx.stopinprogress {
@@ -59,7 +61,7 @@ func httphdlr(w http.ResponseWriter, r *http.Request) {
 			servhdlr(w, r)
 		}
 	} else {
-		glog.Infof(" All daemons and handler are being stopped \n")
+		glog.Infof("All daemons and handler are being stopped \n")
 		http.Error(w, http.StatusText(http.StatusInternalServerError),
 			http.StatusInternalServerError)
 	}

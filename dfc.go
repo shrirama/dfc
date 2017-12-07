@@ -19,6 +19,11 @@ import (
 	"github.com/oklog/oklog/pkg/group"
 )
 
+const (
+	rolesetrver = "server"
+	roleproxy   = "proxy"
+)
+
 // Dctx : DFC context is context for each DFC instance(Proxy or Storage Servers).
 type Dctx struct {
 
@@ -85,16 +90,16 @@ func dfcinit() {
 	)
 	flag.StringVar(&role, "role", "", "role: proxy OR server")
 	flag.StringVar(&conffile, "configfile", "", "config filename")
-	flag.StringVar(&loglevel, "loglevel", "0", "glog loglevel")
+	flag.StringVar(&loglevel, "loglevel", "", "glog loglevel")
 
 	flag.Parse()
-	if conffile == "" || role == "" {
-		fmt.Fprintf(os.Stderr, "Usage: go run dfc role=<proxy|server> configfile=<somefile.json> \n")
+	if conffile == "" {
+		fmt.Fprintf(os.Stderr, "Usage: go run dfc role=<proxy|server> configfile=<somefile.json>\n")
 		os.Exit(2)
 	}
-	if role != "proxy" && role != "server" {
-		fmt.Fprintf(os.Stderr, "Invalid role = %s \n", role)
-		fmt.Fprintf(os.Stderr, "Usage: go run dfc role=<proxy|server> configfile=<somefile.json> \n")
+	if role != roleproxy && role != rolesetrver {
+		fmt.Fprintf(os.Stderr, "Invalid role %q\n", role)
+		fmt.Fprintf(os.Stderr, "Usage: go run dfc role=<proxy|server> configfile=<somefile.json>\n")
 		os.Exit(2)
 	}
 	ctx = new(Dctx)
@@ -103,9 +108,9 @@ func dfcinit() {
 	err := initconfigparam(conffile, loglevel, role)
 	if err != nil {
 		// Will exit process and  dump the stack
-		glog.Fatalf("Failed to initialize, config = %s err = %v \n", conffile, err)
+		glog.Fatalf("Failed to initialize, config %q err %v", conffile, err)
 	}
-	if role == "proxy" {
+	if role == roleproxy {
 		ctx.proxy = true
 		ctx.smap = make(map[string]serverinfo)
 	}
@@ -146,7 +151,7 @@ func Run(pool *group.Group) {
 // Stop DFC instance. similar to user pressing CTL-C or interrupt
 func Stop(ctx *Dctx) {
 	if glog.V(2) {
-		glog.Infof(" Sending stop signal to DFC Main worker \n")
+		glog.Infof("Stop signal to DFC Main worker \n")
 	}
 	close(ctx.cancel)
 }

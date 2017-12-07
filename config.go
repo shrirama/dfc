@@ -7,7 +7,6 @@ package dfc
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
 	"io/ioutil"
 	"os"
 
@@ -61,21 +60,21 @@ func initconfigparam(configfile, loglevel, role string) error {
 	err := flag.Lookup("log_dir").Value.Set(ctx.config.Logdir)
 	if err != nil {
 		// Non-fatal as it'll be placing it directly under the /tmp
-		glog.Errorf("Failed to set glog file name = %v \n", err)
+		glog.Errorf("Failed to flag-set glog dir %q err %v", ctx.config.Logdir, err)
 	}
 	if glog.V(3) {
-		glog.Infof("Logdir = %s Cachedir = %s Proto =%s Port = %s ID = %s loglevel = %s \n",
+		glog.Infof("Logdir %q Cachedir %q Proto %s Port %s ID %s loglevel %s",
 			ctx.config.Logdir, ctx.config.Cachedir, ctx.config.Listen.Proto,
 			ctx.config.Listen.Port, ctx.config.ID, ctx.config.Loglevel)
 	}
 	err = createdir(ctx.config.Logdir)
 	if err != nil {
-		glog.Errorf("Failed to create Logdir = %s err = %s \n", ctx.config.Logdir, err)
+		glog.Errorf("Failed to create Logdir %q err %v", ctx.config.Logdir, err)
 		return err
 	}
 	err = createdir(ctx.config.Cachedir)
 	if err != nil {
-		glog.Errorf("Failed to create Cachedir = %s err = %s \n", ctx.config.Cachedir, err)
+		glog.Errorf("Failed to create Cachedir %q err %v", ctx.config.Cachedir, err)
 		return err
 	}
 	// Argument specified at commandline or through flags has highest precedence.
@@ -86,11 +85,13 @@ func initconfigparam(configfile, loglevel, role string) error {
 	}
 	if err != nil {
 		//  Not fatal as it will use default logging level
-		glog.Errorf("Failed to set loglevel = %v \n", err)
+		glog.Errorf("Failed to set loglevel %v", err)
 	}
 
-	glog.Infof("============== Log level: %s Config: %s Role: %s ==============\n",
+	glog.Infof("============== ")
+	glog.Infof("============== Log level: %s Config: %s Role: %s ==============",
 		flag.Lookup("v").Value.String(), configfile, role)
+	glog.Infof("============== ")
 	glog.Flush()
 	return err
 }
@@ -105,10 +106,10 @@ func createdir(dirname string) error {
 		if os.IsNotExist(err) {
 			err = os.MkdirAll(dirname, 0755)
 			if err != nil {
-				glog.Errorf("Failed to create dir = %s err = %q \n", dirname, err)
+				glog.Errorf("Failed to create dir %q err %v", dirname, err)
 			}
 		} else {
-			glog.Errorf("Failed to do stat = %s err = %q \n", dirname, err)
+			glog.Errorf("Failed to fstat %s err %v", dirname, err)
 		}
 	}
 	return err
@@ -118,12 +119,12 @@ func createdir(dirname string) error {
 func getConfig(fpath string) {
 	raw, err := ioutil.ReadFile(fpath)
 	if err != nil {
-		fmt.Println(err.Error())
+		glog.Errorf("Failed to read config %q err %v", fpath, err)
 		os.Exit(1)
 	}
 	err = json.Unmarshal(raw, &ctx.config)
 	if err != nil {
-		glog.Errorf("Failed to unmarshal JSON file = %s err = %v \n", fpath, err)
+		glog.Errorf("Failed to json-unmarshal config %q err %v", fpath, err)
 		os.Exit(1)
 	}
 }

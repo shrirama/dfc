@@ -28,11 +28,16 @@ build: $(TARGET)
 kill:
 	@pkill -9 dfcstart 2>/dev/null; true
 
-rmall:
-	@rm -rf /tmp/nvidia
+# delete only caches, not logs
+rmcache:
+	@cd /tmp/nvidia; find . -name cache -type d | xargs rm -rf; cd - >/dev/null
 
-clean: kill rmall
+clean: kill rmcache
 	@rm -f $(TARGET)
+
+deploy:
+	@./setup/deploy.sh
+
 
 # run benchmarks 10 times to generate cpu.prof
 cpuprof:
