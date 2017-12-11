@@ -19,9 +19,9 @@ const (
 	locroot = "/iocopy"
 )
 
-func Test_ten(t *testing.T) {
+func Test_thirty(t *testing.T) {
 	var wg = &sync.WaitGroup{}
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 30; i++ {
 		wg.Add(1)
 		keyname := "/dir" + strconv.Itoa(i%3+1) + "/a" + strconv.Itoa(i)
 		// false: read the response and drop it, true: write it to a file

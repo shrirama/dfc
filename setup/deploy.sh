@@ -22,8 +22,7 @@ ID=0
 PROTO="tcp"
 CLDPROVIDER="amazon"
 DIRPATH="/tmp/nvidia/"
-CACHEDIR="/cache"
-# Verbosity: 0 (minimal) to 3 (max)
+# Verbosity: 0 (minimal) to 4 (max)
 LOGLEVEL="3"
 LOGDIR="/log"
 CONFPATH="/etc/dfconf"
@@ -31,6 +30,7 @@ INSTANCEPREFIX="dfc"
 MAXCONCURRENTDOWNLOAD=64
 MAXCONCURRENTUPLOAD=64
 MAXPARTSIZE=4294967296
+CACHEDIR="/cache"
 FSCHECKFREQ=5
 FSLOWWATERMARK=65
 FSHIGHWATERMARK=80
@@ -39,6 +39,11 @@ echo Enter number of caching servers:
 read servcount
 START=0
 END=$servcount
+
+# No of MountPoints Per Storage Server.
+echo Enter number of MountPoints per server:
+read mntpointcount
+CACHEPATHCOUNT=$mntpointcount
 
 for (( c=$START; c<=$END; c++ ))
 do
@@ -49,7 +54,6 @@ do
 	cat > $CONFFILE <<EOL
 	{
 		"id": 				"${ID}",
-		"cachedir":			"${DIRPATH}${CURINSTANCE}${CACHEDIR}",
 		"logdir":			"${DIRPATH}${CURINSTANCE}${LOGDIR}",
 		"loglevel": 			"${LOGLEVEL}",
 		"cloudprovider":		"${CLDPROVIDER}",
@@ -67,8 +71,10 @@ do
 			"maxpartsize":		${MAXPARTSIZE}	
 		},
 		"cache": {
-			"fscheckfreq":	${FSCHECKFREQ},
-			"fslowwatermark":	${FSLOWWATERMARK},
+			"cachepath":			"${DIRPATH}${CURINSTANCE}${CACHEDIR}",
+			"cachepathcount":		${CACHEPATHCOUNT},
+			"fscheckfreq":			${FSCHECKFREQ},
+			"fslowwatermark":		${FSLOWWATERMARK},
 			"fshighwatermark":		${FSHIGHWATERMARK}	
 		}
 	}

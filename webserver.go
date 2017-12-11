@@ -5,6 +5,8 @@
 package dfc
 
 import (
+	"errors"
+	"fmt"
 	"html"
 	"io"
 	"net"
@@ -32,16 +34,28 @@ func websrvstart() error {
 			glog.Errorf("Failed to parse mounts, err %v", err)
 			return err
 		}
-
+		// Local mount points have precedence over cachePath settings.
 		ctx.mntpath, err = parseProcMounts(procMountsPath)
 		if err != nil {
 			glog.Errorf("Failed to register with proxy, err %v", err)
 			return err
 		}
+
 		glog.Infof(" No of mountpath found = %d", len(ctx.mntpath))
 		if len(ctx.mntpath) == 0 {
 			glog.Infof("Mounted storage count = %d Needed atleast 1 ",
 				len(ctx.mntpath))
+
+			// Use CachePath from config file if set.
+			if ctx.config.Cache.CachePath == "" || ctx.config.Cache.CachePathCount < 1 {
+				errstr := fmt.Sprintf("Invalid CachePath = %s Insufficient CachePathCount %d \n",
+					ctx.config.Cache.CachePath, ctx.config.Cache.CachePathCount)
+				glog.Error(errstr)
+				err := errors.New(errstr)
+				return err
+			}
+			ctx.mntpath = populateCachepathMounts()
+
 		}
 		// Start FScheck thread
 		go fsCheckTimer(ctx.fschkchan)

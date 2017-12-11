@@ -3,6 +3,7 @@ package dfc
 import (
 	"io/ioutil"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/golang/glog"
@@ -19,7 +20,7 @@ type MountPoint struct {
 const (
 	//
 	dfcStoreMntPrefix    = "/mnt/dfcstore"
-	dfcSignatureFileName = "/dfc.txt"
+	dfcSignatureFileName = "/.dfc.txt"
 	// Number of fields per line in /proc/mounts as per the fstab man page.
 	expectedNumFieldsPerLine = 6
 	// Location of the mount file to use
@@ -59,6 +60,19 @@ func parseProcMounts(filename string) ([]MountPoint, error) {
 		}
 	}
 	return out, nil
+}
+
+func populateCachepathMounts() []MountPoint {
+	out := []MountPoint{}
+	for i := 0; i < ctx.config.Cache.CachePathCount; i++ {
+		mpath := ctx.config.Cache.CachePath + dfcStoreMntPrefix + strconv.Itoa(i)
+		mp := MountPoint{
+			Device: "",
+			Path:   mpath,
+		}
+		out = append(out, mp)
+	}
+	return out
 }
 
 //dfcmntpath

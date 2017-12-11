@@ -30,7 +30,7 @@ func (pq PriorityQueue) Less(i, j int) bool {
 	return pq[i].atime.Sub(pq[j].atime) > 0
 }
 
-// Swap
+// Swap object from index I with with object from index J.
 func (pq PriorityQueue) Swap(i, j int) {
 	pq[i], pq[j] = pq[j], pq[i]
 	pq[i].index = i

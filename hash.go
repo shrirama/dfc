@@ -32,13 +32,16 @@ func doHashfindServer(url string) string {
 func doHashfindMountPath(key string) string {
 	var mpath string
 	var min uint32 = math.MaxUint32
-	if len(ctx.mntpath) == 0 {
-		return ctx.config.Cachedir
-	} else if len(ctx.mntpath) == 1 {
-		glog.Infof("SHRI mntpath = %s keypath = %s \n", ctx.mntpath[0].Path, key)
-		return ctx.mntpath[0].Path
-	} else {
 
+	// Panic or ASSERT
+	if len(ctx.mntpath) == 0 {
+		glog.Fatalf("Invalid mntpath count = %d \n", len(ctx.mntpath))
+	} else if len(ctx.mntpath) == 1 {
+		if glog.V(3) {
+			glog.Infof("mntpath = %s keypath = %s \n", ctx.mntpath[0].Path, key)
+		}
+		mpath = ctx.mntpath[0].Path
+	} else {
 		for _, minfo := range ctx.mntpath {
 			if glog.V(3) {
 				glog.Infof("mntpath = %s keypath = %s \n", minfo.Path, key)
@@ -49,6 +52,6 @@ func doHashfindMountPath(key string) string {
 				mpath = minfo.Path
 			}
 		}
-		return mpath
 	}
+	return mpath
 }

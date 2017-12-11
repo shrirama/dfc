@@ -9,6 +9,7 @@ import (
 	"flag"
 	"io/ioutil"
 	"os"
+	"strconv"
 
 	"github.com/golang/glog"
 )
@@ -20,7 +21,6 @@ import (
 // TODO Get and Set Config Parameter functionality/interface(s).
 type dfconfig struct {
 	ID            string       `json:"id"`
-	Cachedir      string       `json:"cachedir"`
 	Logdir        string       `json:"logdir"`
 	Loglevel      string       `json:"loglevel"`
 	CloudProvider string       `json:"cloudprovider"`
@@ -42,6 +42,13 @@ type s3config struct {
 
 // cacheconfig specifies caching specific parameters.
 type cacheconfig struct {
+	// CachePath specifies caching path(location) on DFC instance for cached objects.
+	// It can be nil .
+	CachePath string `json:"cachepath"`
+
+	// CachePathCount specifies number of cache paths for DFC storage instance. It is to emulate
+	// MultiMountPoint support. It can be zero.
+	CachePathCount int `json:"cachepathcount"`
 
 	// FSCheck frequency specifies frequency to run FSCheck thread . It is specified in minutes.
 	FSCheckfreq uint32 `json:"fscheckfreq"`
@@ -77,18 +84,34 @@ func initconfigparam(configfile, loglevel, role string) error {
 		glog.Errorf("Failed to flag-set glog dir %q err %v", ctx.config.Logdir, err)
 	}
 	if glog.V(3) {
-		glog.Infof("Logdir %q Cachedir %q Proto %s Port %s ID %s loglevel %s",
-			ctx.config.Logdir, ctx.config.Cachedir, ctx.config.Listen.Proto,
+		glog.Infof("Logdir %q Proto %s Port %s ID %s loglevel %s",
+			ctx.config.Logdir, ctx.config.Listen.Proto,
 			ctx.config.Listen.Port, ctx.config.ID, ctx.config.Loglevel)
+	}
+	for i := 0; i < ctx.config.Cache.CachePathCount; i++ {
+		mpath := ctx.config.Cache.CachePath + dfcStoreMntPrefix + strconv.Itoa(i)
+		err = createdir(mpath)
+		if err != nil {
+			glog.Errorf("Failed to create cachedir %q err %v", mpath, err)
+			return err
+		}
+		// Create DFC signature file
+
+		dfile := mpath + dfcSignatureFileName
+
+		// Always write signature file, We may want data to have some instance specific
+		// timing or stateful information.
+		data := []byte("dfcsignature")
+		err := ioutil.WriteFile(dfile, data, 0644)
+		if err != nil {
+			glog.Errorf("Failed to create signature file %q err %v", dfile, err)
+			return err
+		}
+
 	}
 	err = createdir(ctx.config.Logdir)
 	if err != nil {
 		glog.Errorf("Failed to create Logdir %q err %v", ctx.config.Logdir, err)
-		return err
-	}
-	err = createdir(ctx.config.Cachedir)
-	if err != nil {
-		glog.Errorf("Failed to create Cachedir %q err %v", ctx.config.Cachedir, err)
 		return err
 	}
 	// Argument specified at commandline or through flags has highest precedence.
@@ -122,7 +145,7 @@ func createdir(dirname string) error {
 				glog.Errorf("Failed to create dir %q err %v", dirname, err)
 			}
 		} else {
-			glog.Errorf("Failed to fstat %s err %v", dirname, err)
+			glog.Errorf("Failed to stat %s err %v", dirname, err)
 		}
 	}
 	return err
