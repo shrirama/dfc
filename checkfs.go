@@ -45,35 +45,21 @@ func fsscan(mntpath string) error {
 	hwm := ctx.config.Cache.FSHighWaterMark
 	lwm := ctx.config.Cache.FSLowWaterMark
 
-	desired := lwm - 15
-	// FS is used less than LowWaterMark, nothing needs to be done.
-	if (used * 100 / fs.Blocks) < uint64(lwm) {
+	// FS is used less than HighWaterMark, nothing needs to be done.
+	if (used * 100 / fs.Blocks) < uint64(hwm) {
 		// Do nothing
-		glog.Infof("Mntpath = %s currently used = %d LowWaterMark = %d \n",
-			mntpath, used*100/fs.Blocks, lwm)
+		glog.Infof("Mntpath = %s currently used = %d HighWaterMark = %d \n",
+			mntpath, used*100/fs.Blocks, hwm)
 		return nil
 	}
-	// currently incoming rate of I/O request is not maintained.
-	// It will delete more storage at higher usage , rather than fixed percentage.
 
-	// Used blocks are even more than HighWater marks. It should not reach here
-	// under normal scenario, need to be aggressive in deleting content.
-	if used*100/fs.Blocks > uint64(hwm) {
-
-		// Delete content until Used Filesystem becomes half of HighWaterMark.
-		// if HighWaterMark was 80% , bring filesystem usage to be 40%
-		desired = hwm / 2
-	} else {
-		// Delete 15% below LowWaterMark aka if LowWaterMark was 65%, make it
-		// 50% and so on.
-
-		desired = lwm - 15
-	}
-	desiredblks := fs.Blocks * uint64(desired) / 100
+	// if FileSystem's Used block are more than hwm(%), delete files to bring
+	// FileSystem's Used block equal to lwm.
+	desiredblks := fs.Blocks * uint64(lwm) / 100
 	tobedeletedblks := used - desiredblks
 	bytestodel := tobedeletedblks * uint64(fs.Bsize)
-	glog.Infof("Tobe freed blocks = %v  used blocks = %v desired used blocks = %v bytestodel = %v\n",
-		tobedeletedblks, fs.Blocks, desiredblks, bytestodel)
+	glog.Infof("Currently Used blocks = %v Desired Used blocks = %v Tobe freed blocks = %v bytestodel = %v\n",
+		fs.Blocks, desiredblks, tobedeletedblks, bytestodel)
 	fileList := []string{}
 
 	_ = filepath.Walk(mntpath, func(path string, f os.FileInfo, err error) error {
