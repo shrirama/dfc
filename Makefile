@@ -30,7 +30,7 @@ kill:
 
 # delete only caches, not logs
 rmcache:
-	@cd /tmp/nvidia; find . -name cache -type d | xargs rm -rf; cd - >/dev/null
+	@test -d /tmp/nvidia && cd /tmp/nvidia; find . -name cache -type d | xargs rm -rf; cd - >/dev/null
 
 clean: kill rmcache
 	@rm -f $(TARGET)

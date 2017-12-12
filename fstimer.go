@@ -14,14 +14,7 @@ func fsCheckTimer(quit chan bool) {
 	for {
 		select {
 		case <-ticker.C:
-			if glog.V(2) {
-				glog.Infof(" Going to Run FSCheck for purging old data \n")
-			}
-			if !ctx.checkfsrunning {
-				checkfs()
-			} else {
-				glog.Infof(" Already Running FSCheck for purging old data \n")
-			}
+			checkfs()
 		case <-quit:
 			glog.Infof("Received stop signal for timer thread \n")
 			ticker.Stop()

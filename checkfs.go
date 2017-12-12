@@ -12,35 +12,34 @@ import (
 )
 
 func checkfs() {
-	glog.Infof("checkfs entering \n")
 	if ctx.checkfsrunning {
-		glog.Infof("Already running checkfs, returning \n")
+		glog.Infof("Warning: checkfs is still running")
 		return
 	}
+	// FIXME: must be atomic
 	ctx.checkfsrunning = true
 	mntcnt := len(ctx.mntpath)
-	glog.Infof("Number of mountpath = %d \n", mntcnt)
+	glog.Infof("checkfs start, num mp-s %d", mntcnt)
 	for i := 0; i < mntcnt; i++ {
 		ctx.fschkwg.Add(1)
 		go fsscan(ctx.mntpath[i].Path)
 	}
-	// Wait for completion of scans on all mountpaths
 	ctx.fschkwg.Wait()
 	ctx.checkfsrunning = false
+	glog.Infof("checkfs done")
 	return
 }
 
 func fsscan(mntpath string) error {
 	defer ctx.fschkwg.Done()
-	glog.Infof("fsscan for mntpath = %s \n", mntpath)
+	glog.Infof("fsscan mp %q", mntpath)
 	fs := syscall.Statfs_t{}
 	err := syscall.Statfs(mntpath, &fs)
 	if err != nil {
-		glog.Errorf("Failed to statfs on mntpath = %s err = %v \n", mntpath, err)
+		glog.Errorf("Failed to statfs mp %q err %v", mntpath, err)
 		return err
 	}
-	glog.Infof(" Used Block = %v Free blocks = %v for mntpath = %s \n",
-		fs.Blocks, fs.Bfree, mntpath)
+	glog.Infof("Used blocks %d free blocks %d", fs.Blocks, fs.Bfree)
 	// in terms of block
 	used := fs.Blocks - fs.Bfree
 	hwm := ctx.config.Cache.FSHighWaterMark
@@ -49,8 +48,7 @@ func fsscan(mntpath string) error {
 	// FS is used less than HighWaterMark, nothing needs to be done.
 	if (used * 100 / fs.Blocks) < uint64(hwm) {
 		// Do nothing
-		glog.Infof("Mntpath = %s currently used = %d HighWaterMark = %d \n",
-			mntpath, used*100/fs.Blocks, hwm)
+		glog.Infof("mp %q used %d% hwm %d", mntpath, used*100/fs.Blocks, hwm)
 		return nil
 	}
 
@@ -59,7 +57,7 @@ func fsscan(mntpath string) error {
 	desiredblks := fs.Blocks * uint64(lwm) / 100
 	tobedeletedblks := used - desiredblks
 	bytestodel := tobedeletedblks * uint64(fs.Bsize)
-	glog.Infof("Currently Used blocks = %v Desired Used blocks = %v Tobe freed blocks = %v bytestodel = %v\n",
+	glog.Infof("Used blocks %d will-free blocks %d bytes %d",
 		fs.Blocks, desiredblks, tobedeletedblks, bytestodel)
 	fileList := []string{}
 
@@ -68,7 +66,7 @@ func fsscan(mntpath string) error {
 		return nil
 	})
 	if err != nil {
-		glog.Fatalf("Failed to traverse all files in dir = %s err = %v \n", mntpath, err)
+		glog.Fatalf("Failed to traverse all files in dir %q err %v", mntpath, err)
 		return err
 	}
 	h := &PriorityQueue{}
@@ -105,7 +103,8 @@ func fsscan(mntpath string) error {
 				heap.Push(h, item)
 				evictCurrBytes += stat.Size
 				if glog.V(4) {
-					glog.Infof(" 1A: evictCurrBytes  %v  currentpath = %s atime = %v \n ", evictCurrBytes, file, atime)
+					glog.Infof("1A: evictCurrBytes %v currentpath %s atime %v",
+						evictCurrBytes, file, atime)
 				}
 				break
 			}
@@ -114,7 +113,7 @@ func fsscan(mntpath string) error {
 			maxatime = maxfo.atime
 			evictCurrBytes -= maxfo.size
 			if glog.V(4) {
-				glog.Infof("1B: curheapsize = %v len = %v \n", evictCurrBytes, h.Len())
+				glog.Infof("1B: curheapsize %v len %v", evictCurrBytes, h.Len())
 			}
 
 			// Push object into heap only if current fileobject's atime is lower than Maxheap element.
@@ -123,25 +122,25 @@ func fsscan(mntpath string) error {
 				evictCurrBytes += stat.Size
 
 				if glog.V(4) {
-					glog.Infof("1C: curheapsize = %v len = %v \n", evictCurrBytes, h.Len())
+					glog.Infof("1C: curheapsize %d len %d", evictCurrBytes, h.Len())
 				}
 
 				// Get atime of Maxheap fileobject
 				maxfo = heap.Pop(h).(*FileObject)
 				evictCurrBytes -= maxfo.size
 				if glog.V(4) {
-					glog.Infof("1D: curheapsize = %v len = %v \n", evictCurrBytes, h.Len())
+					glog.Infof("1D: curheapsize %d len %d", evictCurrBytes, h.Len())
 				}
 				maxatime = maxfo.atime
 				if glog.V(4) {
-					glog.Infof("1C: current path = %s atime = %v maxatime Maxpath = %s maxatime = %v \n",
+					glog.Infof("1C: current path %q atime %v maxfo.path %q maxatime %v",
 						file, atime, maxfo.path, maxatime)
 				}
 			}
 
 		case mode.IsDir():
 			if glog.V(4) {
-				glog.Infof("Skipping = %s due to being directory \n", file)
+				glog.Infof("%q is a directory, skipping", file)
 			}
 			continue
 		default:
@@ -151,19 +150,20 @@ func fsscan(mntpath string) error {
 	}
 	heapelecnt := h.Len()
 	if glog.V(4) {
-		glog.Infof("No of elements in heap = %v evictCurrBytes = %v  evictDesiredBytes = %v filecnt = %v \n",
+		glog.Infof("max-heap size %d evictCurrBytes %d evictDesiredBytes %d filecnt %d",
 			heapelecnt, evictCurrBytes, evictDesiredBytes, filecnt)
 	}
 	for heapelecnt > 0 && evictCurrBytes > 0 {
 		maxfo = heap.Pop(h).(*FileObject)
 		evictCurrBytes -= maxfo.size
 		if glog.V(4) {
-			glog.Infof("1E: curheapsize = %v len = %v \n", evictCurrBytes, h.Len())
+			glog.Infof("1E: curheapsize %d len %d", evictCurrBytes, h.Len())
 		}
 		heapelecnt--
 		err := os.Remove(maxfo.path)
+		// FIXME: may fail to reach the "desired" target
 		if err != nil {
-			glog.Errorf("Failed to delete file = %s err = %v \n", maxfo.path, err)
+			glog.Errorf("Failed to delete file %q err %v", maxfo.path, err)
 			continue
 		}
 	}

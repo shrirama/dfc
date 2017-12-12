@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	Delimiter        = "/"
+	fslash           = "/"
 	s3skipTokenToKey = 3
 )
 
@@ -46,25 +46,22 @@ func websrvstart() error {
 			return err
 		}
 
-		glog.Infof(" No of mountpath found = %d", len(ctx.mntpath))
+		glog.Infof("Num mp-s found %d", len(ctx.mntpath))
 		if len(ctx.mntpath) == 0 {
-			glog.Infof("Mounted storage count = %d Needed atleast 1 ",
-				len(ctx.mntpath))
+			glog.Infof("Warning: zero mp-s", len(ctx.mntpath))
 
 			// Use CachePath from config file if set.
 			if ctx.config.Cache.CachePath == "" || ctx.config.Cache.CachePathCount < 1 {
-				errstr := fmt.Sprintf("Invalid CachePath = %s Insufficient CachePathCount %d \n",
+				errstr := fmt.Sprintf("Invalid CachePath %q Insufficient CachePathCount %d",
 					ctx.config.Cache.CachePath, ctx.config.Cache.CachePathCount)
 				glog.Error(errstr)
 				err := errors.New(errstr)
 				return err
 			}
 			ctx.mntpath = populateCachepathMounts()
-
 		}
 		// Start FScheck thread
 		go fsCheckTimer(ctx.fschkchan)
-
 	}
 	httpmux := http.NewServeMux()
 	httpmux.HandleFunc("/", httphdlr)
@@ -109,26 +106,24 @@ func servhdlr(w http.ResponseWriter, r *http.Request) {
 
 		// Path will have following format
 		// /<bucketname>/keypath
-		s := strings.SplitN(html.EscapeString(r.URL.Path), Delimiter, s3skipTokenToKey)
+		s := strings.SplitN(html.EscapeString(r.URL.Path), fslash, s3skipTokenToKey)
 		bktname := s[1]
 		keyname := s[2]
-		glog.Infof("Bucket name = %s Key Name = %s \n", bktname, keyname)
 		mpath := doHashfindMountPath(bktname + keyname)
-
-		fname := mpath + Delimiter + bktname + Delimiter + keyname
-		glog.Infof("complete file name = %s \n", fname)
+		fname := mpath + fslash + bktname + fslash + keyname
+		glog.Infof("Bucket %s key %s fqn %q", bktname, keyname, fname)
 
 		// Check wheather filename exists in local directory or not
 		_, err := os.Stat(fname)
 		if os.IsNotExist(err) {
-			// TODO optimization to avoid creating sessions for each request.
+			// TODO: avoid creating sessions for each request
 			sess := session.Must(session.NewSessionWithOptions(session.Options{
 				SharedConfigState: session.SharedConfigEnable,
 			}))
 
 			// Create S3 Downloader
-			// TODO Optimize values for downloader options, it currently dowloads with 5MB chunk
-			// and 5 concurrent downloads.
+			// TODO: Optimize downloader options
+			// (currently: 5MB chunks and 5 concurrent downloads)
 			downloader := s3manager.NewDownloader(sess)
 			ctx.httprqwg.Add(1)
 
@@ -137,11 +132,11 @@ func servhdlr(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
 		} else {
-			glog.Infof("Bucket %s key %s already exists\n", bktname, keyname)
+			glog.Infof("Bucket %s key %s already exists", bktname, keyname)
 		}
 		file, err := os.Open(fname)
 		if err != nil {
-			glog.Errorf("Failed to open file %q err  %v\n", fname, err)
+			glog.Errorf("Failed to open file %q err %v", fname, err)
 			checksetmounterror(fname)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {
@@ -164,7 +159,7 @@ func servhdlr(w http.ResponseWriter, r *http.Request) {
 	case "PUT":
 	case "DELETE":
 	default:
-		glog.Errorf("Invalid request from %s: %s %q \n", r.RemoteAddr, r.Method, r.URL)
+		glog.Errorf("Invalid request from %s: %s %q", r.RemoteAddr, r.Method, r.URL)
 		http.Error(w, http.StatusText(http.StatusMethodNotAllowed)+": "+r.Method,
 			http.StatusMethodNotAllowed)
 
@@ -183,7 +178,7 @@ func downloadobject(w http.ResponseWriter, downloader *s3manager.Downloader,
 	var bytes int64
 
 	//pathname := ctx.configparam.cachedir + "/" + bucket + "/" + kname
-	fname := mpath + Delimiter + bucket + Delimiter + kname
+	fname := mpath + fslash + bucket + fslash + kname
 	// strips the last part from filepath
 	dirname := filepath.Dir(fname)
 	_, err = os.Stat(dirname)
