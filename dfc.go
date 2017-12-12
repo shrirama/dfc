@@ -36,10 +36,6 @@ type ctxDfc struct {
 	// Configuration
 	config dfconfig
 
-	// Statistics or Histogram for DFC. It's  currently designed as in Memory Non Persistent
-	// data structure to maintain histogram/statistic with respect to running DFC instance.
-	stat stats
-
 	// Channel for  cancellation/termination signal.
 	sig chan os.Signal
 
@@ -167,6 +163,7 @@ func Run(pool *group.Group) {
 // Stop DFC service (similar to user pressing CTRL-C)
 func Stop(ctx *ctxDfc) {
 	glog.Infof("Terminating on timeout")
+	glog.Flush()
 	close(ctx.cancel)
 }
 

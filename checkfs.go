@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -57,8 +58,10 @@ func fsscan(mntpath string) error {
 	desiredblks := fs.Blocks * uint64(lwm) / 100
 	tobedeletedblks := used - desiredblks
 	bytestodel := tobedeletedblks * uint64(fs.Bsize)
-	glog.Infof("Used blocks %d will-free blocks %d bytes %d",
-		fs.Blocks, desiredblks, tobedeletedblks, bytestodel)
+	if glog.V(4) {
+		glog.Infof("Used blocks %d blocks to be freed %d bytes %d",
+			fs.Blocks, desiredblks, tobedeletedblks, bytestodel)
+	}
 	fileList := []string{}
 
 	_ = filepath.Walk(mntpath, func(path string, f os.FileInfo, err error) error {
@@ -166,6 +169,8 @@ func fsscan(mntpath string) error {
 			glog.Errorf("Failed to delete file %q err %v", maxfo.path, err)
 			continue
 		}
+		atomic.AddInt64(&stats.bytesevicted, maxfo.size)
+		atomic.AddInt64(&stats.filesevicted, 1)
 	}
 	return nil
 }

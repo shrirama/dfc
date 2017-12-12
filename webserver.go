@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -103,19 +104,19 @@ func httphdlr(w http.ResponseWriter, r *http.Request) {
 func servhdlr(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
-
-		// Path will have following format
-		// /<bucketname>/keypath
+		atomic.AddInt64(&stats.numget, 1)
+		// Expecting /<bucketname>/keypath
 		s := strings.SplitN(html.EscapeString(r.URL.Path), fslash, s3skipTokenToKey)
 		bktname := s[1]
 		keyname := s[2]
 		mpath := doHashfindMountPath(bktname + keyname)
 		fname := mpath + fslash + bktname + fslash + keyname
-		glog.Infof("Bucket %s key %s fqn %q", bktname, keyname, fname)
 
 		// Check wheather filename exists in local directory or not
 		_, err := os.Stat(fname)
 		if os.IsNotExist(err) {
+			atomic.AddInt64(&stats.numnotcached, 1)
+			glog.Infof("Bucket %s key %s fqn %q is not cached", bktname, keyname, fname)
 			// TODO: avoid creating sessions for each request
 			sess := session.Must(session.NewSessionWithOptions(session.Options{
 				SharedConfigState: session.SharedConfigEnable,
@@ -130,9 +131,11 @@ func servhdlr(w http.ResponseWriter, r *http.Request) {
 			err = downloadobject(w, downloader, mpath, bktname, keyname)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
+			} else {
+				glog.Infof("Bucket %s key %s fqn %q downloaded", bktname, keyname, fname)
 			}
-		} else {
-			glog.Infof("Bucket %s key %s already exists", bktname, keyname)
+		} else if glog.V(2) {
+			glog.Infof("Bucket %s key %s fqn %q *is* cached", bktname, keyname, fname)
 		}
 		file, err := os.Open(fname)
 		if err != nil {
@@ -142,11 +145,8 @@ func servhdlr(w http.ResponseWriter, r *http.Request) {
 		} else {
 			defer file.Close()
 
-			// TODO Currently entire file is being downloaded before sending streaming
-			// response to  http response. It's possible to do chunking, concurrency of
-			// object without using downloader to stream chunks as soon as it lands on
-			// local storage to http response(without waiting for entire file to download)
-			// It would require multipart and concurrency implementation in DFC itself.
+			// TODO: optimize. Currently the file gets downloaded and stored locally
+			//       _prior_ to sending http response back to the requesting client
 			_, err := io.Copy(w, file)
 			if err != nil {
 				glog.Errorf("Failed to copy data to http response for fname %q err %v\n", fname, err)
@@ -211,8 +211,7 @@ func downloadobject(w http.ResponseWriter, downloader *s3manager.Downloader,
 			kname, bucket, err)
 		checksetmounterror(fname)
 	} else {
-		glog.Infof("Downloaded %q size = %d from bucket %s by key %s\n",
-			file.Name(), bytes, bucket, kname)
+		atomic.AddInt64(&stats.bytesloaded, bytes)
 	}
 	return err
 }

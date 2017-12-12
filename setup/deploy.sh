@@ -41,8 +41,7 @@ read servcount
 START=0
 END=$servcount
 
-# No of MountPoints Per Storage Server.
-echo Enter number of MountPoints per server:
+echo Enter number of mount points per server:
 read mntpointcount
 CACHEPATHCOUNT=$mntpointcount
 
