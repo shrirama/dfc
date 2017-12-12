@@ -43,13 +43,16 @@ func doHashfindMountPath(key string) string {
 		mpath = ctx.mntpath[0].Path
 	} else {
 		for _, minfo := range ctx.mntpath {
-			if glog.V(3) {
-				glog.Infof("mntpath = %s keypath = %s \n", minfo.Path, key)
-			}
-			cs := crc32.Checksum([]byte(key+minfo.Path), crc32.IEEETable)
-			if cs < min {
-				min = cs
-				mpath = minfo.Path
+			// MountPath can become non usable in context of error
+			if minfo.Usable {
+				if glog.V(3) {
+					glog.Infof("mntpath = %s keypath = %s \n", minfo.Path, key)
+				}
+				cs := crc32.Checksum([]byte(key+minfo.Path), crc32.IEEETable)
+				if cs < min {
+					min = cs
+					mpath = minfo.Path
+				}
 			}
 		}
 	}

@@ -31,3 +31,13 @@ func getipaddr() (string, error) {
 	return ipaddr, err
 
 }
+
+// Check and Set MountPath error count and status.
+func checksetmounterror(path string) {
+	if getMountPathErrorCount(path) > ctx.config.Cache.ErrorThreshold {
+		setMountPathStatus(path, false)
+	} else {
+		incrMountPathErrorCount(path)
+	}
+
+}

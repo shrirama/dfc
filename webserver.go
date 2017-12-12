@@ -22,6 +22,11 @@ import (
 	"github.com/golang/glog"
 )
 
+const (
+	Delimiter        = "/"
+	s3skipTokenToKey = 3
+)
+
 // Start instance of webserver listening on specific port.
 func websrvstart() error {
 	var err error
@@ -104,14 +109,13 @@ func servhdlr(w http.ResponseWriter, r *http.Request) {
 
 		// Path will have following format
 		// /<bucketname>/keypath
-		// FIXME: hardcoded split
-		s := strings.SplitN(html.EscapeString(r.URL.Path), "/", 3)
+		s := strings.SplitN(html.EscapeString(r.URL.Path), Delimiter, s3skipTokenToKey)
 		bktname := s[1]
 		keyname := s[2]
 		glog.Infof("Bucket name = %s Key Name = %s \n", bktname, keyname)
 		mpath := doHashfindMountPath(bktname + keyname)
 
-		fname := mpath + "/" + bktname + "/" + keyname
+		fname := mpath + Delimiter + bktname + Delimiter + keyname
 		glog.Infof("complete file name = %s \n", fname)
 
 		// Check wheather filename exists in local directory or not
@@ -138,6 +142,7 @@ func servhdlr(w http.ResponseWriter, r *http.Request) {
 		file, err := os.Open(fname)
 		if err != nil {
 			glog.Errorf("Failed to open file %q err  %v\n", fname, err)
+			checksetmounterror(fname)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {
 			defer file.Close()
@@ -178,7 +183,7 @@ func downloadobject(w http.ResponseWriter, downloader *s3manager.Downloader,
 	var bytes int64
 
 	//pathname := ctx.configparam.cachedir + "/" + bucket + "/" + kname
-	fname := mpath + "/" + bucket + "/" + kname
+	fname := mpath + Delimiter + bucket + Delimiter + kname
 	// strips the last part from filepath
 	dirname := filepath.Dir(fname)
 	_, err = os.Stat(dirname)
@@ -199,6 +204,7 @@ func downloadobject(w http.ResponseWriter, downloader *s3manager.Downloader,
 	file, err = os.Create(fname)
 	if err != nil {
 		glog.Errorf("Unable to create file %q err %v\n", fname, err)
+		checksetmounterror(fname)
 		return err
 	}
 	bytes, err = downloader.Download(file, &s3.GetObjectInput{
@@ -208,6 +214,7 @@ func downloadobject(w http.ResponseWriter, downloader *s3manager.Downloader,
 	if err != nil {
 		glog.Errorf("Failed to download key %s from bucket %s err %v\n",
 			kname, bucket, err)
+		checksetmounterror(fname)
 	} else {
 		glog.Infof("Downloaded %q size = %d from bucket %s by key %s\n",
 			file.Name(), bytes, bucket, kname)

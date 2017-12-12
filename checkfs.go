@@ -4,6 +4,7 @@ import (
 	"container/heap"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -73,13 +74,18 @@ func fsscan(mntpath string) error {
 	h := &PriorityQueue{}
 	heap.Init(h)
 
-	var curhsize, desiredhsize int64
-	desiredhsize = int64(bytestodel)
+	var evictCurrBytes, evictDesiredBytes int64
+	evictDesiredBytes = int64(bytestodel)
 	var maxatime time.Time
 	var maxfo *FileObject
 	var filecnt uint64
 	for _, file := range fileList {
 		filecnt++
+
+		// Skip special files starting with .
+		if strings.HasPrefix(file, ".") {
+			continue
+		}
 		fi, err := os.Stat(file)
 		if err != nil {
 			glog.Errorf("Failed to do stat on %s error = %v \n", file, err)
@@ -94,37 +100,37 @@ func fsscan(mntpath string) error {
 				path: file, size: stat.Size, atime: atime, index: 0}
 
 			// Heapsize refers to total size of objects into heap.
-			// Insert into heap until desiredheapsize
-			if curhsize < desiredhsize {
+			// Insert into heap until evictDesiredBytes
+			if evictCurrBytes < evictDesiredBytes {
 				heap.Push(h, item)
-				curhsize += stat.Size
+				evictCurrBytes += stat.Size
 				if glog.V(4) {
-					glog.Infof(" 1A: curhsize  %v  currentpath = %s atime = %v \n ", curhsize, file, atime)
+					glog.Infof(" 1A: evictCurrBytes  %v  currentpath = %s atime = %v \n ", evictCurrBytes, file, atime)
 				}
 				break
 			}
 			// Find Maxheap element for comparision with next set of incoming file object.
 			maxfo = heap.Pop(h).(*FileObject)
 			maxatime = maxfo.atime
-			curhsize -= maxfo.size
+			evictCurrBytes -= maxfo.size
 			if glog.V(4) {
-				glog.Infof("1B: curheapsize = %v len = %v \n", curhsize, h.Len())
+				glog.Infof("1B: curheapsize = %v len = %v \n", evictCurrBytes, h.Len())
 			}
 
 			// Push object into heap only if current fileobject's atime is lower than Maxheap element.
 			if atime.Before(maxatime) {
 				heap.Push(h, item)
-				curhsize += stat.Size
+				evictCurrBytes += stat.Size
 
 				if glog.V(4) {
-					glog.Infof("1C: curheapsize = %v len = %v \n", curhsize, h.Len())
+					glog.Infof("1C: curheapsize = %v len = %v \n", evictCurrBytes, h.Len())
 				}
 
 				// Get atime of Maxheap fileobject
 				maxfo = heap.Pop(h).(*FileObject)
-				curhsize -= maxfo.size
+				evictCurrBytes -= maxfo.size
 				if glog.V(4) {
-					glog.Infof("1D: curheapsize = %v len = %v \n", curhsize, h.Len())
+					glog.Infof("1D: curheapsize = %v len = %v \n", evictCurrBytes, h.Len())
 				}
 				maxatime = maxfo.atime
 				if glog.V(4) {
@@ -143,17 +149,16 @@ func fsscan(mntpath string) error {
 		}
 
 	}
-
 	heapelecnt := h.Len()
 	if glog.V(4) {
-		glog.Infof("No of elements in heap = %v curhsize = %v  desiredhsize = %v filecnt = %v \n",
-			heapelecnt, curhsize, desiredhsize, filecnt)
+		glog.Infof("No of elements in heap = %v evictCurrBytes = %v  evictDesiredBytes = %v filecnt = %v \n",
+			heapelecnt, evictCurrBytes, evictDesiredBytes, filecnt)
 	}
-	for heapelecnt > 0 && curhsize > 0 {
+	for heapelecnt > 0 && evictCurrBytes > 0 {
 		maxfo = heap.Pop(h).(*FileObject)
-		curhsize -= maxfo.size
+		evictCurrBytes -= maxfo.size
 		if glog.V(4) {
-			glog.Infof("1E: curheapsize = %v len = %v \n", curhsize, h.Len())
+			glog.Infof("1E: curheapsize = %v len = %v \n", evictCurrBytes, h.Len())
 		}
 		heapelecnt--
 		err := os.Remove(maxfo.path)

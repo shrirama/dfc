@@ -11,10 +11,16 @@ import (
 
 // MountPoint structure encapsulates mount specific information on local DFC Node.
 type MountPoint struct {
+
+	// Mountpath can be only used for ConsistentHash if Usable is set to  True.
+	// It will be set to True after verifying signature file.
+	// It will be set to False incase of error(IO error or Non Accessible error).
+	Usable bool
 	Device string
 	Path   string
 	Type   string
 	Opts   []string
+	errcnt int
 }
 
 const (
@@ -27,6 +33,7 @@ const (
 	procMountsPath = "/proc/mounts"
 )
 
+// Parse and populate usable locally mounted path on DFC Instance.
 func parseProcMounts(filename string) ([]MountPoint, error) {
 	content, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -50,6 +57,7 @@ func parseProcMounts(filename string) ([]MountPoint, error) {
 				glog.Infof(" Found DFC storage Mountpath = %s \n", fields[1])
 			}
 			mp := MountPoint{
+				Usable: true,
 				Device: fields[0],
 				Path:   fields[1],
 				Type:   fields[2],
@@ -62,11 +70,14 @@ func parseProcMounts(filename string) ([]MountPoint, error) {
 	return out, nil
 }
 
+// populateCachepathMounts provides functionality to emulate multimountpath support with
+// local directories.
 func populateCachepathMounts() []MountPoint {
 	out := []MountPoint{}
 	for i := 0; i < ctx.config.Cache.CachePathCount; i++ {
 		mpath := ctx.config.Cache.CachePath + dfcStoreMntPrefix + strconv.Itoa(i)
 		mp := MountPoint{
+			Usable: true,
 			Device: "",
 			Path:   mpath,
 		}
@@ -75,7 +86,7 @@ func populateCachepathMounts() []MountPoint {
 	return out
 }
 
-//dfcmntpath
+// DFC can only use mountpaths starting with dfcStoreMntPrefix.
 func checkdfcmntpath(path string) bool {
 
 	if strings.HasPrefix(path, dfcStoreMntPrefix) && checkdfcsignature(path) {
@@ -85,6 +96,7 @@ func checkdfcmntpath(path string) bool {
 
 }
 
+// To Check if signature file is present or not.
 func checkdfcsignature(path string) bool {
 	//TODO keep handle open on file so that underlying mountpoint cannot be unmounted.
 	filename := path + dfcSignatureFileName
@@ -93,4 +105,32 @@ func checkdfcsignature(path string) bool {
 		return false
 	}
 	return true
+}
+
+// Sets the MountPath status.
+func setMountPathStatus(path string, status bool) {
+	for _, minfo := range ctx.mntpath {
+		if strings.HasPrefix(path, minfo.Path) {
+			minfo.Usable = status
+		}
+	}
+}
+
+// Get error count for underlying mountpath.
+func getMountPathErrorCount(path string) int {
+	for _, minfo := range ctx.mntpath {
+		if strings.HasPrefix(path, minfo.Path) {
+			return minfo.errcnt
+		}
+	}
+	return 0
+}
+
+// Increment error count for underlying mountpath.
+func incrMountPathErrorCount(path string) {
+	for _, minfo := range ctx.mntpath {
+		if strings.HasPrefix(path, minfo.Path) {
+			minfo.errcnt++
+		}
+	}
 }

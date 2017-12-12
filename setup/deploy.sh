@@ -31,6 +31,7 @@ MAXCONCURRENTDOWNLOAD=64
 MAXCONCURRENTUPLOAD=64
 MAXPARTSIZE=4294967296
 CACHEDIR="/cache"
+ERRORTHRESHOLD=5
 FSCHECKFREQ=5
 FSLOWWATERMARK=65
 FSHIGHWATERMARK=80
@@ -73,6 +74,7 @@ do
 		"cache": {
 			"cachepath":			"${DIRPATH}${CURINSTANCE}${CACHEDIR}",
 			"cachepathcount":		${CACHEPATHCOUNT},
+			"errorthreshold":		${ERRORTHRESHOLD},
 			"fscheckfreq":			${FSCHECKFREQ},
 			"fslowwatermark":		${FSLOWWATERMARK},
 			"fshighwatermark":		${FSHIGHWATERMARK}	

@@ -42,6 +42,7 @@ type s3config struct {
 
 // cacheconfig specifies caching specific parameters.
 type cacheconfig struct {
+
 	// CachePath specifies caching path(location) on DFC instance for cached objects.
 	// It can be nil .
 	CachePath string `json:"cachepath"`
@@ -49,6 +50,10 @@ type cacheconfig struct {
 	// CachePathCount specifies number of cache paths for DFC storage instance. It is to emulate
 	// MultiMountPoint support. It can be zero.
 	CachePathCount int `json:"cachepathcount"`
+
+	// ErrorThreshold specifies errorthreshold for specific cache path.DFC will set cachepath to be unusable
+	// if errorcount is > errorthreshold.
+	ErrorThreshold int `json:"errorthreshold"`
 
 	// FSCheck frequency specifies frequency to run FSCheck thread . It is specified in minutes.
 	FSCheckfreq uint32 `json:"fscheckfreq"`
@@ -98,10 +103,9 @@ func initconfigparam(configfile, loglevel, role string) error {
 		// Create DFC signature file
 
 		dfile := mpath + dfcSignatureFileName
-
 		// Always write signature file, We may want data to have some instance specific
 		// timing or stateful information.
-		data := []byte("dfcsignature")
+		data := []byte("dfcsignature \n")
 		err := ioutil.WriteFile(dfile, data, 0644)
 		if err != nil {
 			glog.Errorf("Failed to create signature file %q err %v", dfile, err)
