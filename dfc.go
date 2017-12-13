@@ -36,28 +36,23 @@ type ctxDfc struct {
 	// Configuration
 	config dfconfig
 
-	// Channel for  cancellation/termination signal.
-	sig chan os.Signal
-
 	// Channel for listening cancellation request.
 	cancel chan struct{}
 
-	// Channel for cancelling FSCheck timer
+	// Channel for stopping FSCheck timer
 	fschkchan chan bool
 
-	// List of Usable mountpoints on storage server
+	// List of usable mountpoints on storage server
 	mntpath []MountPoint
 
 	// stopinprogress is set during main daemon thread stopping. DFC instance cannot
 	// accept new http requests once stopinprogress is set.
 	stopinprogress bool
 
-	// DFC can run as Proxy or Storage Server Instance..
-	// True will imply running as Proxy and
-	// False will imply running as Storage Server.
+	// DFC can run as a proxy (true) or a Server (false)
 	proxy bool
 
-	// CheckFS is running or not.
+	// true if running
 	checkfsrunning bool
 
 	// WaitGroup for completing Http Requests.
@@ -66,7 +61,7 @@ type ctxDfc struct {
 	// http listener
 	listener net.Listener
 
-	// WaitGroup for completing fscheck on all mountpaths
+	// fscheck waitgroup - all mount points
 	fschkwg sync.WaitGroup
 }
 
@@ -75,15 +70,14 @@ type serverinfo struct {
 	// PORT refers to http listening port id of DFC instance.
 	port string
 
-	// IP refers to first I/P address of DFC Node. DFC instance node may have mulitple I/P
-	// address but DFC will select first one.
+	// FIXME: always picking the first IP address as the server's IP
 	ip string
 
-	// ID uniquely identifies a Proxy Client or Storage Server in DFC Cluster. It needs to
-	// be unique . We currently use MAC id.
+	// ID uniquely identifies a Proxy Client or Storage Server in DFC Cluster
+	// We currently use MAC addr
 	id string
 
-	// List of Usable mountpoints on storage server
+	// List of Usable mount points
 	mntpath []MountPoint
 
 	// TODO Need to expand
@@ -115,12 +109,11 @@ func dfcinit() {
 		fmt.Fprintf(os.Stderr, "Usage: go run dfc role=<proxy|server> configfile=<somefile.json>\n")
 		os.Exit(2)
 	}
-	ctx.sig = make(chan os.Signal, 1)
 	ctx.cancel = make(chan struct{})
 	err := initconfigparam(conffile, loglevel, role)
 	if err != nil {
 		// Will exit process and  dump the stack
-		glog.Fatalf("Failed to initialize, config %q err %v", conffile, err)
+		glog.Fatalf("Failed to initialize, config %q, err: %v", conffile, err)
 	}
 	if role == roleproxy {
 		ctx.proxy = true
@@ -153,11 +146,21 @@ func Run(pool *group.Group) {
 	if glog.V(2) {
 		glog.Infof("Run \n")
 	}
+	var ok bool
 	err := pool.Run()
-	if err != nil {
-		// Will exit process and dump Stack.
-		glog.Fatalf("Failed to Run %v \n", err)
+	if err == nil {
+		goto m
 	}
+	_, ok = err.(*signalError)
+	if ok {
+		goto m
+	}
+	// dump stack trace and exit
+	glog.Fatalf("============== Terminated with err: %v\n", err)
+m:
+	glog.Infoln("============== Terminated OK")
+	glog.Flush()
+	os.Exit(0)
 }
 
 // Stop DFC service (similar to user pressing CTRL-C)

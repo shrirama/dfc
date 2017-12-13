@@ -35,25 +35,27 @@ func websrvstart() error {
 	if !ctx.proxy {
 		// Chanel for stopping filesystem check timer.
 		ctx.fschkchan = make(chan bool)
+		//
+		// FIXME: UNREGISTER is totally missing
+		//
 		err = registerwithproxy()
 		if err != nil {
-			glog.Errorf("Failed to parse mounts, err %v", err)
+			glog.Errorf("Failed to parse mounts, err: %v", err)
 			return err
 		}
 		// Local mount points have precedence over cachePath settings.
 		ctx.mntpath, err = parseProcMounts(procMountsPath)
 		if err != nil {
-			glog.Errorf("Failed to register with proxy, err %v", err)
+			glog.Errorf("Failed to register with proxy, err: %v", err)
 			return err
 		}
-
 		glog.Infof("Num mp-s found %d", len(ctx.mntpath))
 		if len(ctx.mntpath) == 0 {
-			glog.Infof("Warning: zero mp-s", len(ctx.mntpath))
+			glog.Infof("Warning: 0 (zero) mp-s")
 
 			// Use CachePath from config file if set.
 			if ctx.config.Cache.CachePath == "" || ctx.config.Cache.CachePathCount < 1 {
-				errstr := fmt.Sprintf("Invalid CachePath %q Insufficient CachePathCount %d",
+				errstr := fmt.Sprintf("Invalid configuration: CachePath %q or CachePathCount %d",
 					ctx.config.Cache.CachePath, ctx.config.Cache.CachePathCount)
 				glog.Error(errstr)
 				err := errors.New(errstr)
@@ -70,7 +72,7 @@ func websrvstart() error {
 
 	ctx.listener, err = net.Listen("tcp", portstring)
 	if err != nil {
-		glog.Errorf("Failed to listen, portstring %s err %v", portstring, err)
+		glog.Errorf("Failed to start listening on port %s, err: %v", portstring, err)
 		return err
 	}
 	return http.Serve(ctx.listener, httpmux)
@@ -139,7 +141,7 @@ func servhdlr(w http.ResponseWriter, r *http.Request) {
 		}
 		file, err := os.Open(fname)
 		if err != nil {
-			glog.Errorf("Failed to open file %q err %v", fname, err)
+			glog.Errorf("Failed to open file %q, err: %v", fname, err)
 			checksetmounterror(fname)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		} else {
@@ -149,7 +151,7 @@ func servhdlr(w http.ResponseWriter, r *http.Request) {
 			//       _prior_ to sending http response back to the requesting client
 			_, err := io.Copy(w, file)
 			if err != nil {
-				glog.Errorf("Failed to copy data to http response for fname %q err %v\n", fname, err)
+				glog.Errorf("Failed to copy data to http response for fname %q, err: %v", fname, err)
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			} else {
 				glog.Infof("Copied %q to http response\n", fname)
@@ -187,18 +189,18 @@ func downloadobject(w http.ResponseWriter, downloader *s3manager.Downloader,
 		if os.IsNotExist(err) {
 			err = os.MkdirAll(dirname, 0755)
 			if err != nil {
-				glog.Errorf("Failed to create bucket dir %s err %v\n", dirname, err)
+				glog.Errorf("Failed to create bucket dir %s, err: %v", dirname, err)
 				return err
 			}
 		} else {
-			glog.Errorf("Failed to fstat dir %q err %v\n", dirname, err)
+			glog.Errorf("Failed to fstat dir %q, err: %v", dirname, err)
 			return err
 		}
 	}
 
 	file, err = os.Create(fname)
 	if err != nil {
-		glog.Errorf("Unable to create file %q err %v\n", fname, err)
+		glog.Errorf("Unable to create file %q, err: %v", fname, err)
 		checksetmounterror(fname)
 		return err
 	}
@@ -207,7 +209,7 @@ func downloadobject(w http.ResponseWriter, downloader *s3manager.Downloader,
 		Key:    aws.String(kname),
 	})
 	if err != nil {
-		glog.Errorf("Failed to download key %s from bucket %s err %v\n",
+		glog.Errorf("Failed to download key %s from bucket %s, err: %v",
 			kname, bucket, err)
 		checksetmounterror(fname)
 	} else {
@@ -219,7 +221,10 @@ func downloadobject(w http.ResponseWriter, downloader *s3manager.Downloader,
 // Stop Http service .It waits for http outstanding requests to be completed
 // before returning.
 func websrvstop(err error) {
-	glog.Infof("Stop http worker, err %v", err)
+	if ctx.listener == nil {
+		return
+	}
+	glog.Infof("Stop http worker, err: %v", err)
 
 	// stop listening
 	ctx.listener.Close()

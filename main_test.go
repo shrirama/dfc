@@ -40,7 +40,7 @@ func getAndCopyTmp(keyname string, t *testing.T, wg *sync.WaitGroup, copy bool) 
 		if os.IsNotExist(err) {
 			err = os.MkdirAll(dirname, 0755)
 			if err != nil {
-				t.Logf("Failed to create bucket dir %q err %v", dirname, err)
+				t.Logf("Failed to create bucket dir %q err: %v", dirname, err)
 				return
 			}
 		} else {
@@ -59,7 +59,7 @@ func getAndCopyTmp(keyname string, t *testing.T, wg *sync.WaitGroup, copy bool) 
 		if match, _ := regexp.MatchString("connection refused", err.Error()); match {
 			t.Fatalf("http connection refused - terminating")
 		}
-		t.Logf("Failed to get key %s err %v", keyname, err)
+		t.Logf("Failed to get key %s err: %v", keyname, err)
 	}
 	if resp == nil {
 		return
@@ -69,7 +69,7 @@ func getAndCopyTmp(keyname string, t *testing.T, wg *sync.WaitGroup, copy bool) 
 	if copy {
 		numBytesWritten, err := io.Copy(file, resp.Body)
 		if err != nil {
-			t.Errorf("Failed to write to file err %v", err)
+			t.Errorf("Failed to write to file err: %v", err)
 			return
 		}
 		t.Logf("Downloaded and copied %q size %d", fname, numBytesWritten)
@@ -102,7 +102,7 @@ func get(keyname string, b *testing.B, wg *sync.WaitGroup) {
 			fmt.Println("http connection refused - terminating")
 			os.Exit(1)
 		}
-		fmt.Printf("Failed to get key %s err %v", keyname, err)
+		fmt.Printf("Failed to get key %s err: %v", keyname, err)
 	}
 	if resp == nil {
 		return

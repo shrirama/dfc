@@ -37,7 +37,7 @@ func fsscan(mntpath string) error {
 	fs := syscall.Statfs_t{}
 	err := syscall.Statfs(mntpath, &fs)
 	if err != nil {
-		glog.Errorf("Failed to statfs mp %q err %v", mntpath, err)
+		glog.Errorf("Failed to statfs mp %q, err: %v", mntpath, err)
 		return err
 	}
 	glog.Infof("Used blocks %d free blocks %d", fs.Blocks, fs.Bfree)
@@ -69,7 +69,7 @@ func fsscan(mntpath string) error {
 		return nil
 	})
 	if err != nil {
-		glog.Fatalf("Failed to traverse all files in dir %q err %v", mntpath, err)
+		glog.Fatalf("Failed to traverse all files in dir %q, err: %v", mntpath, err)
 		return err
 	}
 	h := &PriorityQueue{}
@@ -166,7 +166,7 @@ func fsscan(mntpath string) error {
 		err := os.Remove(maxfo.path)
 		// FIXME: may fail to reach the "desired" target
 		if err != nil {
-			glog.Errorf("Failed to delete file %q err %v", maxfo.path, err)
+			glog.Errorf("Failed to delete file %q, err: %v", maxfo.path, err)
 			continue
 		}
 		atomic.AddInt64(&stats.bytesevicted, maxfo.size)

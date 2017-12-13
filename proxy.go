@@ -245,7 +245,7 @@ func proxyclientRequest(sid string, w http.ResponseWriter, r *http.Request) (rer
 
 	_, err = io.Copy(w, resp.Body)
 	if err != nil {
-		glog.Errorf("Failed to Copy data to http response for URL rq %s err %v \n",
+		glog.Errorf("Failed to Copy data to http response for URL rq %s, err: %v \n",
 			html.EscapeString(r.URL.Path), err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	} else {

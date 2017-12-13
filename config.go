@@ -86,7 +86,7 @@ func initconfigparam(configfile, loglevel, role string) error {
 	err := flag.Lookup("log_dir").Value.Set(ctx.config.Logdir)
 	if err != nil {
 		// Non-fatal as it'll be placing it directly under the /tmp
-		glog.Errorf("Failed to flag-set glog dir %q err %v", ctx.config.Logdir, err)
+		glog.Errorf("Failed to flag-set glog dir %q, err: %v", ctx.config.Logdir, err)
 	}
 	if glog.V(3) {
 		glog.Infof("Logdir %q Proto %s Port %s ID %s loglevel %s",
@@ -97,7 +97,7 @@ func initconfigparam(configfile, loglevel, role string) error {
 		mpath := ctx.config.Cache.CachePath + dfcStoreMntPrefix + strconv.Itoa(i)
 		err = createdir(mpath)
 		if err != nil {
-			glog.Errorf("Failed to create cachedir %q err %v", mpath, err)
+			glog.Errorf("Failed to create cachedir %q, err: %v", mpath, err)
 			return err
 		}
 		// Create DFC signature file
@@ -108,14 +108,14 @@ func initconfigparam(configfile, loglevel, role string) error {
 		data := []byte("dfcsignature \n")
 		err := ioutil.WriteFile(dfile, data, 0644)
 		if err != nil {
-			glog.Errorf("Failed to create signature file %q err %v", dfile, err)
+			glog.Errorf("Failed to create signature file %q, err: %v", dfile, err)
 			return err
 		}
 
 	}
 	err = createdir(ctx.config.Logdir)
 	if err != nil {
-		glog.Errorf("Failed to create Logdir %q err %v", ctx.config.Logdir, err)
+		glog.Errorf("Failed to create Logdir %q, err: %v", ctx.config.Logdir, err)
 		return err
 	}
 	// Argument specified at commandline or through flags has highest precedence.
@@ -146,10 +146,10 @@ func createdir(dirname string) error {
 		if os.IsNotExist(err) {
 			err = os.MkdirAll(dirname, 0755)
 			if err != nil {
-				glog.Errorf("Failed to create dir %q err %v", dirname, err)
+				glog.Errorf("Failed to create dir %q, err: %v", dirname, err)
 			}
 		} else {
-			glog.Errorf("Failed to stat %s err %v", dirname, err)
+			glog.Errorf("Failed to stat %s, err: %v", dirname, err)
 		}
 	}
 	return err
@@ -159,12 +159,12 @@ func createdir(dirname string) error {
 func getConfig(fpath string) {
 	raw, err := ioutil.ReadFile(fpath)
 	if err != nil {
-		glog.Errorf("Failed to read config %q err %v", fpath, err)
+		glog.Errorf("Failed to read config %q, err: %v", fpath, err)
 		os.Exit(1)
 	}
 	err = json.Unmarshal(raw, &ctx.config)
 	if err != nil {
-		glog.Errorf("Failed to json-unmarshal config %q err %v", fpath, err)
+		glog.Errorf("Failed to json-unmarshal config %q, err: %v", fpath, err)
 		os.Exit(1)
 	}
 }

@@ -38,11 +38,17 @@ FSHIGHWATERMARK=80
 
 echo Enter number of caching servers:
 read servcount
+if ! [[ "$servcount" =~ ^[0-9]+$ ]] ; then
+	echo "Error: '$servcount' is not a number"; exit 1
+fi
 START=0
 END=$servcount
 
 echo Enter number of mount points per server:
 read mntpointcount
+if ! [[ "$mntpointcount" =~ ^[0-9]+$ ]] ; then
+	echo "Error: '$mntpointcount' is not a number"; exit 1
+fi
 CACHEPATHCOUNT=$mntpointcount
 
 for (( c=$START; c<=$END; c++ ))
