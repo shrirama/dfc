@@ -96,13 +96,13 @@ do
 		if [ $c -eq 0 ]
 		then
 				set -x
-				go run setup/dfcstart.go -configfile=$CONFFILE -role=proxy $1 $2 &
+				go run setup/dfc.go -configfile=$CONFFILE -role=proxy $1 $2 &
 				{ set +x; } 2>/dev/null
 				# wait for the proxy to start up
 				sleep 2
 		else
 				set -x
-				go run setup/dfcstart.go -configfile=$CONFFILE -role=server $1 $2 &
+				go run setup/dfc.go -configfile=$CONFFILE -role=server $1 $2 &
 				{ set +x; } 2>/dev/null
 		fi
 done

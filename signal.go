@@ -21,15 +21,25 @@ func (se *signalError) Error() string {
 	return fmt.Sprintf("Signal %d", se.sig)
 }
 
+//===========================================================================
+//
+// sig runner
+//
+//===========================================================================
+type sigrunner struct {
+	chsig chan os.Signal
+}
+
 // signal handler
-func sighandler() error {
-	chsig := make(chan os.Signal, 8)
-	signal.Notify(chsig,
+func (r *sigrunner) run() error {
+	r.chsig = make(chan os.Signal, 1)
+	signal.Notify(r.chsig,
 		syscall.SIGHUP,
 		syscall.SIGINT,
 		syscall.SIGTERM,
 		syscall.SIGQUIT)
-	s := <-chsig
+	s := <-r.chsig
+	signal.Stop(r.chsig) // stop immediately
 	switch s {
 	case syscall.SIGHUP: // kill -SIGHUP XXXX
 		return &signalError{sig: syscall.SIGHUP}
@@ -39,13 +49,13 @@ func sighandler() error {
 		return &signalError{sig: syscall.SIGTERM}
 	case syscall.SIGQUIT: // kill -SIGQUIT XXXX
 		return &signalError{sig: syscall.SIGQUIT}
-	default:
-		glog.Errorln("Unknown Signal:", s)
 	}
 	return nil
 }
 
-// Exit function in context of signal
-func sigexit(err error) {
-	glog.Infof("sigexit called, err: %v", err)
+func (r *sigrunner) stop(err error) {
+	glog.Infof("Stopping sigrunner, err: %v", err)
+	glog.Flush()
+	signal.Stop(r.chsig)
+	close(r.chsig)
 }

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -12,27 +13,26 @@ import (
 	"github.com/golang/glog"
 )
 
+var critsect = &sync.Mutex{}
+
 func checkfs() {
-	if ctx.checkfsrunning {
-		glog.Infof("Warning: checkfs is still running")
-		return
-	}
-	// FIXME: must be atomic
-	ctx.checkfsrunning = true
+	critsect.Lock()
+	defer critsect.Unlock()
+
 	mntcnt := len(ctx.mntpath)
+	fschkwg := &sync.WaitGroup{}
 	glog.Infof("checkfs start, num mp-s %d", mntcnt)
 	for i := 0; i < mntcnt; i++ {
-		ctx.fschkwg.Add(1)
-		go fsscan(ctx.mntpath[i].Path)
+		fschkwg.Add(1)
+		go fsscan(ctx.mntpath[i].Path, fschkwg)
 	}
-	ctx.fschkwg.Wait()
-	ctx.checkfsrunning = false
+	fschkwg.Wait()
 	glog.Infof("checkfs done")
 	return
 }
 
-func fsscan(mntpath string) error {
-	defer ctx.fschkwg.Done()
+func fsscan(mntpath string, fschkwg *sync.WaitGroup) error {
+	defer fschkwg.Done()
 	glog.Infof("fsscan mp %q", mntpath)
 	fs := syscall.Statfs_t{}
 	err := syscall.Statfs(mntpath, &fs)

@@ -1,7 +1,3 @@
-// CopyRight Notice: All rights reserved
-//
-//
-
 package dfc
 
 import (
@@ -14,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -28,74 +25,16 @@ const (
 	s3skipTokenToKey = 3
 )
 
-// Start instance of webserver listening on specific port.
-func websrvstart() error {
-	var err error
-	// server must register with the proxy
-	if !ctx.proxy {
-		// Chanel for stopping filesystem check timer.
-		ctx.fschkchan = make(chan bool)
-		//
-		// FIXME: UNREGISTER is totally missing
-		//
-		err = registerwithproxy()
-		if err != nil {
-			glog.Errorf("Failed to parse mounts, err: %v", err)
-			return err
-		}
-		// Local mount points have precedence over cachePath settings.
-		ctx.mntpath, err = parseProcMounts(procMountsPath)
-		if err != nil {
-			glog.Errorf("Failed to register with proxy, err: %v", err)
-			return err
-		}
-		glog.Infof("Num mp-s found %d", len(ctx.mntpath))
-		if len(ctx.mntpath) == 0 {
-			glog.Infof("Warning: 0 (zero) mp-s")
-
-			// Use CachePath from config file if set.
-			if ctx.config.Cache.CachePath == "" || ctx.config.Cache.CachePathCount < 1 {
-				errstr := fmt.Sprintf("Invalid configuration: CachePath %q or CachePathCount %d",
-					ctx.config.Cache.CachePath, ctx.config.Cache.CachePathCount)
-				glog.Error(errstr)
-				err := errors.New(errstr)
-				return err
-			}
-			ctx.mntpath = populateCachepathMounts()
-		}
-		// Start FScheck thread
-		go fsCheckTimer(ctx.fschkchan)
-	}
-	httpmux := http.NewServeMux()
-	httpmux.HandleFunc("/", httphdlr)
-	portstring := ":" + ctx.config.Listen.Port
-
-	ctx.listener, err = net.Listen("tcp", portstring)
-	if err != nil {
-		glog.Errorf("Failed to start listening on port %s, err: %v", portstring, err)
-		return err
-	}
-	return http.Serve(ctx.listener, httpmux)
-
-}
-
 // Function for handling request  on specific port
 func httphdlr(w http.ResponseWriter, r *http.Request) {
 	if glog.V(1) {
 		glog.Infof("HTTP request from %s: %s %q", r.RemoteAddr, r.Method, r.URL)
 	}
 
-	// Stop accepting new http request during Main daemon stop.
-	if !ctx.stopinprogress {
-		if ctx.proxy {
-			proxyhdlr(w, r)
-		} else {
-			servhdlr(w, r)
-		}
+	if ctx.isproxy {
+		proxyhdlr(w, r)
 	} else {
-		glog.Infof("Stopping...")
-		http.Error(w, http.StatusText(http.StatusInternalServerError),
-			http.StatusInternalServerError)
+		servhdlr(w, r)
 	}
 }
 
@@ -128,7 +67,7 @@ func servhdlr(w http.ResponseWriter, r *http.Request) {
 			// TODO: Optimize downloader options
 			// (currently: 5MB chunks and 5 concurrent downloads)
 			downloader := s3manager.NewDownloader(sess)
-			ctx.httprqwg.Add(1)
+			ctx.httprun.httprqwg.Add(1)
 
 			err = downloadobject(w, downloader, mpath, bktname, keyname)
 			if err != nil {
@@ -173,7 +112,7 @@ func servhdlr(w http.ResponseWriter, r *http.Request) {
 func downloadobject(w http.ResponseWriter, downloader *s3manager.Downloader,
 	mpath string, bucket string, kname string) error {
 
-	defer ctx.httprqwg.Done()
+	defer ctx.httprun.httprqwg.Done()
 
 	var file *os.File
 	var err error
@@ -218,20 +157,84 @@ func downloadobject(w http.ResponseWriter, downloader *s3manager.Downloader,
 	return err
 }
 
-// Stop Http service .It waits for http outstanding requests to be completed
-// before returning.
-func websrvstop(err error) {
-	if ctx.listener == nil {
+//===========================================================================
+//
+// http runner
+//
+//===========================================================================
+type httprunner struct {
+	listener  net.Listener    // http listener
+	fschkchan chan bool       // to stop checkfs timer
+	httprqwg  *sync.WaitGroup // to complete pending http
+}
+
+// start http runner
+func (r *httprunner) run() error {
+	var err error
+	// server must register with the proxy
+	if !ctx.isproxy {
+		// Chanel for stopping filesystem check timer.
+		r.fschkchan = make(chan bool)
+		//
+		// FIXME: UNREGISTER is totally missing
+		//
+		err = registerwithproxy()
+		if err != nil {
+			glog.Errorf("Failed to parse mounts, err: %v", err)
+			return err
+		}
+		// Local mount points have precedence over cachePath settings.
+		ctx.mntpath, err = parseProcMounts(procMountsPath)
+		if err != nil {
+			glog.Errorf("Failed to register with proxy, err: %v", err)
+			return err
+		}
+		if len(ctx.mntpath) == 0 {
+			glog.Infof("Warning: configuring %d mount points for testing purposes", ctx.config.Cache.CachePathCount)
+
+			// Use CachePath from config file if set.
+			if ctx.config.Cache.CachePath == "" || ctx.config.Cache.CachePathCount < 1 {
+				errstr := fmt.Sprintf("Invalid configuration: CachePath %q or CachePathCount %d",
+					ctx.config.Cache.CachePath, ctx.config.Cache.CachePathCount)
+				glog.Error(errstr)
+				err := errors.New(errstr)
+				return err
+			}
+			ctx.mntpath = populateCachepathMounts()
+		} else {
+			glog.Infof("Found %d mount points", len(ctx.mntpath))
+		}
+		// Start FScheck thread
+		go fsCheckTimer(r.fschkchan)
+	}
+	httpmux := http.NewServeMux()
+	httpmux.HandleFunc("/", httphdlr)
+	portstring := ":" + ctx.config.Listen.Port
+
+	r.listener, err = net.Listen("tcp", portstring)
+	if err != nil {
+		glog.Errorf("Failed to start listening on port %s, err: %v", portstring, err)
+		return err
+	}
+	r.httprqwg = &sync.WaitGroup{}
+	ctx.httprun = r
+	return http.Serve(r.listener, httpmux)
+
+}
+
+// stop gracefully
+func (r *httprunner) stop(err error) {
+	if r.listener == nil {
 		return
 	}
-	glog.Infof("Stop http worker, err: %v", err)
+	glog.Infof("Stopping httprunner, err: %v", err)
 
 	// stop listening
-	ctx.listener.Close()
+	r.listener.Close()
 
-	// Wait for the completion of all pending HTTP requests
-	ctx.httprqwg.Wait()
-	if !ctx.proxy {
-		close(ctx.fschkchan)
+	// wait for the completion of pending requests
+	r.httprqwg.Wait()
+	if !ctx.isproxy {
+		close(r.fschkchan)
 	}
 }
